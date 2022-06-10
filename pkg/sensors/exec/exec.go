@@ -136,8 +136,10 @@ func execParse(reader *bytes.Reader) (processapi.MsgProcess, bool, error) {
 			return proc, false, err
 		}
 		// cut the zero byte
-		n := len(data) - 1
-		cmdArgs = bytes.Split(data[:n], []byte{0x00})
+		if len(data) > 0 {
+			n := len(data) - 1
+			cmdArgs = bytes.Split(data[:n], []byte{0x00})
+		}
 
 		cwd := args[unsafe.Sizeof(desc):]
 		cmdArgs = append(cmdArgs, cwd)
