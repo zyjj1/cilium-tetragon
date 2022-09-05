@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"syscall"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"github.com/cilium/tetragon/pkg/reader/notify"
 	"github.com/cilium/tetragon/pkg/sensors"
 	"github.com/cilium/tetragon/pkg/sensors/config"
+	"github.com/cilium/tetragon/pkg/sensors/config/confmap"
 
 	"github.com/sirupsen/logrus"
 )
@@ -172,6 +174,7 @@ func (k *Observer) runEvents(stopCtx context.Context) error {
 		return err
 	}
 	defer e.CloseAll()
+
 	k.__loopEvents(stopCtx, e)
 	return nil
 }
@@ -254,6 +257,18 @@ type Observer struct {
 	configFile string
 }
 
+// Update TetragonConf map with environment configuration
+func (k *Observer) updateTetragonConf() error {
+	pid := os.Getpid()
+	err := confmap.UpdateTetragonConfMap(option.Config.MapDir, pid)
+	if err != nil {
+		k.log.WithField("observer", "confmap-update").WithError(err).Warn("Update TetragonConf map failed, advanced Cgroups tracking will be disabled")
+		k.log.WithField("observer", "confmap-update").Warn("Continuing without advanced Cgroups tracking. Process association with Pods and Containers might be limited")
+	}
+
+	return nil
+}
+
 func (k *Observer) Start(ctx context.Context, sens []*sensors.Sensor) error {
 	k.startUpdateMapMetrics()
 
@@ -271,7 +286,12 @@ func (k *Observer) Start(ctx context.Context, sens []*sensors.Sensor) error {
 
 	k.perfConfig = bpf.DefaultPerfEventConfig()
 
-	var err error
+	/* Probe runtime configuration */
+	err := k.updateTetragonConf()
+	if err != nil {
+		return err
+	}
+
 	if useCiliumEbpfReader {
 		err = k.runEventsNew(ctx, func() {})
 	} else {
