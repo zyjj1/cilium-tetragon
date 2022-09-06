@@ -258,7 +258,7 @@ type Observer struct {
 }
 
 // Update TetragonConf map with environment configuration
-func (k *Observer) updateTetragonConf() error {
+func (k *Observer) UpdateTetragonConf() error {
 	pid := os.Getpid()
 	err := confmap.UpdateTetragonConfMap(option.Config.MapDir, pid)
 	if err != nil {
@@ -287,7 +287,7 @@ func (k *Observer) Start(ctx context.Context, sens []*sensors.Sensor) error {
 	k.perfConfig = bpf.DefaultPerfEventConfig()
 
 	/* Probe runtime configuration */
-	err := k.updateTetragonConf()
+	err := k.UpdateTetragonConf()
 	if err != nil {
 		return err
 	}
