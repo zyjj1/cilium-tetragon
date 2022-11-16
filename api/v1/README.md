@@ -9,6 +9,8 @@
 - [tetragon/tetragon.proto](#tetragon_tetragon-proto)
     - [Capabilities](#tetragon-Capabilities)
     - [Container](#tetragon-Container)
+    - [CreateContainer](#tetragon-CreateContainer)
+    - [CreateContainer.AnnotationsEntry](#tetragon-CreateContainer-AnnotationsEntry)
     - [GetHealthStatusRequest](#tetragon-GetHealthStatusRequest)
     - [GetHealthStatusResponse](#tetragon-GetHealthStatusResponse)
     - [HealthStatus](#tetragon-HealthStatus)
@@ -34,6 +36,8 @@
     - [ProcessExit](#tetragon-ProcessExit)
     - [ProcessKprobe](#tetragon-ProcessKprobe)
     - [ProcessTracepoint](#tetragon-ProcessTracepoint)
+    - [RuntimeHookRequest](#tetragon-RuntimeHookRequest)
+    - [RuntimeHookResponse](#tetragon-RuntimeHookResponse)
     - [Test](#tetragon-Test)
   
     - [HealthStatusResult](#tetragon-HealthStatusResult)
@@ -191,6 +195,40 @@
 | start_time | [google.protobuf.Timestamp](#google-protobuf-Timestamp) |  | Start time of the container. |
 | pid | [google.protobuf.UInt32Value](#google-protobuf-UInt32Value) |  | PID in the container namespace. |
 | maybe_exec_probe | [bool](#bool) |  | If this is set true, it means that the process might have been originated from a Kubernetes exec probe. For this field to be true, the following must be true: 1. The binary field matches the first element of the exec command list for either liveness or readiness probe excluding the basename. For example, &#34;/bin/ls&#34; and &#34;ls&#34; are considered a match. 2. The arguments field exactly matches the rest of the exec command list. |
+
+
+
+
+
+
+<a name="tetragon-CreateContainer"></a>
+
+### CreateContainer
+CreateContainer informs the agent that a container was created
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| podID | [string](#string) |  | podID is the uuid of the pod |
+| containerID | [string](#string) |  | containerID is the container id (without the &lt;runtime&gt;:// prefix) |
+| rootDir | [string](#string) |  | rootDir is the root directory of the container |
+| annotations | [CreateContainer.AnnotationsEntry](#tetragon-CreateContainer-AnnotationsEntry) | repeated | annotations for the container see https://github.com/opencontainers/runtime-spec/blob/main/config.md#annotations |
+
+
+
+
+
+
+<a name="tetragon-CreateContainer-AnnotationsEntry"></a>
+
+### CreateContainer.AnnotationsEntry
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| key | [string](#string) |  |  |
+| value | [string](#string) |  |  |
 
 
 
@@ -667,6 +705,31 @@
 | subsys | [string](#string) |  |  |
 | event | [string](#string) |  |  |
 | args | [KprobeArgument](#tetragon-KprobeArgument) | repeated | TODO: once we implement all we want, rename KprobeArgument to GenericArgument |
+
+
+
+
+
+
+<a name="tetragon-RuntimeHookRequest"></a>
+
+### RuntimeHookRequest
+RuntimeHookRequest synchronously propagates information to the agent about run-time state.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| createContainer | [CreateContainer](#tetragon-CreateContainer) |  |  |
+
+
+
+
+
+
+<a name="tetragon-RuntimeHookResponse"></a>
+
+### RuntimeHookResponse
+
 
 
 
@@ -1301,6 +1364,7 @@ Determins the behaviour of a field filter
 | GetSensorConfig | [GetSensorConfigRequest](#tetragon-GetSensorConfigRequest) | [GetSensorConfigResponse](#tetragon-GetSensorConfigResponse) |  |
 | GetStackTraceTree | [GetStackTraceTreeRequest](#tetragon-GetStackTraceTreeRequest) | [GetStackTraceTreeResponse](#tetragon-GetStackTraceTreeResponse) |  |
 | GetVersion | [GetVersionRequest](#tetragon-GetVersionRequest) | [GetVersionResponse](#tetragon-GetVersionResponse) |  |
+| RuntimeHook | [RuntimeHookRequest](#tetragon-RuntimeHookRequest) | [RuntimeHookResponse](#tetragon-RuntimeHookResponse) |  |
 
  
 

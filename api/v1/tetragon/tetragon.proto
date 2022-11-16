@@ -278,3 +278,26 @@ message HealthStatus {
 message GetHealthStatusResponse {
 	repeated HealthStatus health_status = 1;
 }
+
+
+// RuntimeHookRequest synchronously propagates information to the agent about run-time state.
+message RuntimeHookRequest {
+    oneof event {
+        CreateContainer createContainer = 1;
+    }
+}
+
+message RuntimeHookResponse {}
+
+// CreateContainer informs the agent that a container was created
+message CreateContainer {
+    // podID is the uuid of the pod
+    string podID = 1;
+    // containerID is the container id (without the <runtime>:// prefix)
+    string containerID = 2;
+    // rootDir is the root directory of the container
+    string rootDir = 3;
+    // annotations for the container
+    // see https://github.com/opencontainers/runtime-spec/blob/main/config.md#annotations
+    map<string, string> annotations = 4;
+}
