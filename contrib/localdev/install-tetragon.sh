@@ -6,6 +6,7 @@ error() {
 }
 
 set -eu
+set -x
 
 PROJECT_ROOT="$(realpath $(dirname "${BASH_SOURCE[0]}")/../..)"
 cd "$PROJECT_ROOT"
@@ -89,6 +90,7 @@ if [ ! -z "$VALUES" ]; then
     helm_opts+=("--values" "$VALUES")
 fi
 helm_opts+=("tetragon" "./install/kubernetes")
+helm_opts+=("--set" "tetragon.grpc.protocol=unix" "--set" "tetragon.grpc.address=/var/run/cilium/tetragon/tetragon.sock" )
 
 echo "Installing Tetragon in cluster..." 1>&2
 helm "${helm_opts[@]}"

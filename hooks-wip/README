@@ -1,0 +1,30 @@
+
+## Minikube
+
+### Containerd
+
+Be advised, steps below are just for testing.
+
+```
+$ minikube start --container-runtime=containerd --driver=qemu2
+$ ./minikube-containerd-install-hook.sh
+$ minikube ssh sudo systemctl restart containerd
+$ minikube ssh cat /var/log/tetragon-oci-hook.log
+```
+
+```
+$ helm install --namespace kube-system --set tetragon.image.override=cilium/tetragon:latest  tetragon ./install/kubernetes
+```
+
+Development:
+
+```
+$ minikube start --container-runtime=containerd --driver=kvm2
+$ minikube mount $HOME:$HOME # we need .kube/config as well as the tetragon source
+$ ./tetragon-operator --kube-config ~/.kube/config
+$ minikube ssh --  'sudo mkdir -p /var/run/cilium/tetragon'
+$ make tetragon-static # build static tetragon so that we don't have to deal with glibc incompatibilities
+$ minikube ssh sudo "sh -c 'NODE_NAME=minikube /home/kkourt/src/tetragon/tetragon --bpf-lib /home/kkourt/src/tetragon/bpf/objs --server-address unix:///var/run/cilium/tetragon/tetragon.sock --enable-k8s-api --k8s-kubeconfig-path /home/kkourt/.kube/config'"
+```
+
+

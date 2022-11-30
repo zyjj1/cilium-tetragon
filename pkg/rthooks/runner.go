@@ -25,7 +25,7 @@ func (r *Runner) RunHooks(ctx context.Context, req *v1.RuntimeHookRequest) error
 			if fn := cbs.CreateContainer; fn != nil {
 				err := fn(ctx, &CreateContainerArg{
 					Req:     createReq,
-					watcher: r.watcher,
+					Watcher: r.watcher,
 				})
 				ret = multierr.Append(ret, err)
 			}

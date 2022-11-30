@@ -1,0 +1,40 @@
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: "lseek-kill-example"
+spec:
+  kprobes:
+  - call: "__x64_sys_lseek"
+    return: false
+    syscall: true
+    args:
+    - index: 0
+      type: int
+    selectors:
+    - matchArgs:
+      - index: 0
+        operator: "Equal"
+        values:
+        - "-10"
+          #matchActions:
+          #- action: Sigkill
+    - matchArgs:
+      - index: 0
+        operator: "Equal"
+        values:
+        - "-2"
+      matchPIDs:
+      - operator: In
+        followForks: true
+        values:
+        - 152531
+    - matchArgs:
+      - index: 0
+        operator: "Equal"
+        values:
+        - "-3"
+      matchPIDs:
+      - operator: In
+        followForks: true
+        values:
+        - 152531

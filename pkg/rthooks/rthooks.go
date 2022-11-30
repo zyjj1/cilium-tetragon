@@ -11,8 +11,6 @@ import (
 
 	v1 "github.com/cilium/tetragon/api/v1/tetragon"
 	"github.com/cilium/tetragon/pkg/watcher"
-
-	corev1 "k8s.io/api/core/v1"
 )
 
 var (
@@ -53,14 +51,7 @@ func GlobalRunner() *Runner {
 
 type CreateContainerArg struct {
 	Req     *v1.CreateContainer
-	watcher watcher.K8sResourceWatcher
-}
-
-func (arg *CreateContainerArg) FindPod() (*corev1.Pod, *corev1.ContainerStatus, bool) {
-	if arg.watcher == nil {
-		return nil, nil, false
-	}
-	return arg.watcher.FindPod(arg.Req.ContainerID)
+	Watcher watcher.K8sResourceWatcher
 }
 
 type Callbacks struct {
