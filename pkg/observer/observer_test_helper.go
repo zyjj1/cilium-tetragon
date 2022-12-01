@@ -46,6 +46,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 )
 
 var (
@@ -457,6 +458,20 @@ func DockerRun(t *testing.T, args ...string) (containerId string) {
 
 type fakeK8sWatcher struct {
 	fakePod, fakeNamespace string
+}
+
+func (f *fakeK8sWatcher) FindPodOnly(podID string) (*corev1.Pod, error) {
+	if podID == "" {
+		return nil, fmt.Errorf("empty podID")
+	}
+
+	return &corev1.Pod{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      f.fakePod,
+			Namespace: f.fakeNamespace,
+			UID:       k8stypes.UID(podID),
+		},
+	}, nil
 }
 
 func (f *fakeK8sWatcher) FindPod(containerID string) (*corev1.Pod, *corev1.ContainerStatus, bool) {
