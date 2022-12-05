@@ -21,6 +21,9 @@ const (
 
 	// TPCRDName is the full name of the TracingPolicy CRD.
 	TPCRDName = TPKindDefinition + "/" + CRDVersion
+
+	// TPNamespacedCRDName is the full name of the TracingPolicy CRD.
+	TPNamespacedCRDName = TPNamespacedKindDefinition + "/" + CRDVersion
 )
 
 // SchemeGroupVersion is group version used to register these objects
