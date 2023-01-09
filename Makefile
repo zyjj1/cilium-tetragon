@@ -87,6 +87,10 @@ verify: tetragon-bpf
 tetragon:
 	$(GO) build -gcflags=$(GO_GCFLAGS) -ldflags=$(GO_LDFLAGS) -mod=vendor ./cmd/tetragon/
 
+.PHONY: tetragon-static
+tetragon-static:
+	$(GO) build -gcflags=$(GO_GCFLAGS) -ldflags=$(GO_LDFLAGS) --ldflags '-linkmode external -extldflags=-static' -mod=vendor ./cmd/tetragon/
+
 tetra:
 	$(GO) build -gcflags=$(GO_GCFLAGS) -ldflags=$(GO_LDFLAGS) -mod=vendor ./cmd/tetra/
 
