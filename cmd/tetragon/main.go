@@ -313,7 +313,7 @@ func tetragonExecute() error {
 			return err
 		}
 
-		sens, err = sensors.GetMergedSensorFromParserPolicy(cnf.Name(), &cnf.Spec)
+		sens, err = sensors.GetMergedSensorFromParserPolicy(cnf.TpName(), &cnf.Spec)
 		if err != nil {
 			return err
 		}
