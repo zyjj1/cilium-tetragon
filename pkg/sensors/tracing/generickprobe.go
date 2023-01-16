@@ -267,6 +267,17 @@ func createMultiKprobeSensor(sensorPath string, multiIDs, multiRetIDs []idtable.
 	return progs, maps
 }
 
+// GenericKprobeObjs returns the generic kprobe and and generic retprobe objects
+func GenericKprobeObjs() (string, string) {
+	if kernels.EnableV60Progs() {
+		return "bpf_generic_kprobe_v60.o", "bpf_generic_retkprobe_v60.o"
+	} else if kernels.EnableLargeProgs() {
+		return "bpf_generic_kprobe_v53.o", "bpf_generic_retkprobe_v53.o"
+	} else {
+		return "bpf_generic_kprobe.o", "bpf_generic_retkprobe.o"
+	}
+}
+
 func createGenericKprobeSensor(name string, kprobes []v1alpha1.KProbeSpec) (*sensors.Sensor, error) {
 	var progs []*program.Program
 	var maps []*program.Map
@@ -274,16 +285,7 @@ func createGenericKprobeSensor(name string, kprobes []v1alpha1.KProbeSpec) (*sen
 	var useMulti bool
 
 	sensorPath := name
-
-	loadProgName := "bpf_generic_kprobe.o"
-	loadProgRetName := "bpf_generic_retkprobe.o"
-	if kernels.EnableV60Progs() {
-		loadProgName = "bpf_generic_kprobe_v60.o"
-		loadProgRetName = "bpf_generic_retkprobe_v60.o"
-	} else if kernels.EnableLargeProgs() {
-		loadProgName = "bpf_generic_kprobe_v53.o"
-		loadProgRetName = "bpf_generic_retkprobe_v53.o"
-	}
+	loadProgName, loadProgRetName := GenericKprobeObjs()
 
 	// use multi kprobe only if:
 	// - it's not disabled by user
