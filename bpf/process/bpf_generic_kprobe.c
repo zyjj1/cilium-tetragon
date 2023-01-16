@@ -13,6 +13,7 @@
 #include "types/basic.h"
 #include "generic_calls.h"
 #include "pfilter.h"
+#include "policy_filter_map.h"
 
 char _license[] __attribute__((section("license"), used)) = "GPL";
 
