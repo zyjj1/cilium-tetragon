@@ -49,9 +49,9 @@ func StartSensorManager(bpfDir, mapDir, ciliumDir string) (*Manager, error) {
 				}
 
 				var sensors []*Sensor
+				spec := op.tp.TpSpec()
 				for _, s := range registeredSpecHandlers {
 					var sensor *Sensor
-					spec := op.tp.TpSpec()
 					sensor, err = s.SpecHandler(spec)
 					if err != nil {
 						break
