@@ -166,13 +166,10 @@ type State struct {
 
 // New creates a new State of the policy filter code. Callers should call Close() to release
 // allocated resources (namely the bpf map).
-func New(
-	podInformer cache.SharedIndexInformer,
-) (*State, error) {
+func New() (*State, error) {
 	var err error
 	ret := &State{
-		log:         logger.GetLogger().WithField("subsystem", "policy-filter"),
-		podInformer: podInformer,
+		log: logger.GetLogger().WithField("subsystem", "policy-filter"),
 	}
 
 	ret.pfMap, err = newPfMap()
@@ -180,24 +177,25 @@ func New(
 		return nil, err
 	}
 
-	if podInformer != nil {
-		podInformer.AddEventHandler(
-			cache.ResourceEventHandlerFuncs{
-				AddFunc: func(obj interface{}) {
-					// check whether we have
-				},
-				UpdateFunc: func(_, newObj interface{}) {
-					// NB(kkourt): because we only support namespace filters, we
-					// do nothing in the update function. Once we add support for k8s
-					// labels, however, we would need deal with pod labels changing.
-				},
-				DeleteFunc: func(obj interface{}) {
-					// Remove all containers for this pod
-				},
-			})
-	}
-
 	return ret, nil
+}
+
+func (s *State) RegisterPodHandlers(podInformer cache.SharedIndexInformer) {
+	podInformer.AddEventHandler(
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				// check whether we have
+			},
+			UpdateFunc: func(_, newObj interface{}) {
+				// NB(kkourt): because we only support namespace filters, we
+				// do nothing in the update function. Once we add support for k8s
+				// labels, however, we would need deal with pod labels changing.
+			},
+			DeleteFunc: func(obj interface{}) {
+				// Remove all containers for this pod
+			},
+		})
+	s.podInformer = podInformer
 }
 
 // Close releases resources allocated by the Manager. Specifically, we close and unpin the policy filter map.

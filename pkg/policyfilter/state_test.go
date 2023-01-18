@@ -11,7 +11,7 @@ import (
 )
 
 func TestState(t *testing.T) {
-	s, err := New(nil)
+	s, err := New()
 	defer s.Close()
 
 	require.NoError(t, err)
