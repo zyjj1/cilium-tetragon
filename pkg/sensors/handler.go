@@ -3,21 +3,41 @@
 
 package sensors
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/cilium/tetragon/pkg/policyfilter"
+)
 
 type handler struct {
 	// map of sensor collections: name -> collection
 	collections               map[string]collection
 	bpfDir, mapDir, ciliumDir string
+
+	nextPolicyID policyfilter.PolicyID
+	pfState      *policyfilter.State
 }
 
-func newHandler(bpfDir, mapDir, ciliumDir string) *handler {
-	return &handler{
-		collections: map[string]collection{},
-		bpfDir:      bpfDir,
-		mapDir:      mapDir,
-		ciliumDir:   ciliumDir,
+func newHandler(bpfDir, mapDir, ciliumDir string) (*handler, error) {
+	pfState, err := policyfilter.GetPolicyFilterState()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize policy filter state: %w", err)
 	}
+
+	return &handler{
+		collections:  map[string]collection{},
+		bpfDir:       bpfDir,
+		mapDir:       mapDir,
+		ciliumDir:    ciliumDir,
+		pfState:      pfState,
+		nextPolicyID: policyfilter.PolicyID(1),
+	}, nil
+}
+
+func (h *handler) allocPolicyID() policyfilter.PolicyID {
+	ret := h.nextPolicyID
+	h.nextPolicyID++
+	return ret
 }
 
 func (h *handler) addTracingPolicy(op *tracingPolicyAdd) error {
@@ -40,14 +60,22 @@ func (h *handler) addTracingPolicy(op *tracingPolicyAdd) error {
 	}
 
 	col := collection{
-		sensors:       sensors,
-		name:          op.name,
-		tracingpolicy: op.tp,
+		sensors:         sensors,
+		name:            op.name,
+		tracingpolicy:   op.tp,
+		tracingpolicyID: h.allocPolicyID(),
 	}
+
+	// NB: for now, policy filtering only supports namespaces
+	if tpNs, ok := op.tp.(TracingPolicyNamespaced); ok {
+		if err := h.pfState.AddPolicy(col.tracingpolicyID, tpNs.TpNamespace()); err != nil {
+			return err
+		}
+	}
+
 	if err := col.load(op.ctx, h.bpfDir, h.mapDir, h.ciliumDir, nil); err != nil {
 		return err
 	}
-
 	// NB: in some cases it might make sense to keep the policy registered if there was an
 	// error. For now, however, we only keep it if it was successfully loaded
 	h.collections[op.name] = col

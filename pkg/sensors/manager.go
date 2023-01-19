@@ -178,6 +178,12 @@ type TracingPolicy interface {
 	TpInfo() string
 }
 
+type TracingPolicyNamespaced interface {
+	TracingPolicy
+	// TpNamespace returns the namespace of the policy
+	TpNamespace() string
+}
+
 // AddTracingPolicy adds a new sensor based on a tracing policy
 func (h *Manager) AddTracingPolicy(ctx context.Context, tp TracingPolicy) error {
 	retc := make(chan error)

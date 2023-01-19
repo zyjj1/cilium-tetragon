@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/cilium/tetragon/pkg/policyfilter"
 	"go.uber.org/multierr"
 )
 
@@ -13,9 +14,10 @@ import (
 // This can either be creating from a tracing policy, or by loading sensors indepenently for sensors
 // that are not loaded via a tracing policy (e.g., base sensor) and testing.
 type collection struct {
-	sensors       []*Sensor
-	name          string
-	tracingpolicy TracingPolicy
+	sensors         []*Sensor
+	name            string
+	tracingpolicy   TracingPolicy
+	tracingpolicyID policyfilter.PolicyID
 }
 
 func (c *collection) info() string {

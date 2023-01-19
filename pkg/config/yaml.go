@@ -4,7 +4,6 @@
 package config
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/cilium/tetragon/pkg/k8s/apis/cilium.io/v1alpha1"
@@ -31,7 +30,7 @@ func (cnf *GenericTracingConf) TpSpec() *v1alpha1.TracingPolicySpec {
 }
 
 func (cnf *GenericTracingConf) TpInfo() string {
-	return fmt.Sprintf("%s", cnf.Metadata.Name)
+	return cnf.Metadata.Name
 }
 
 func ReadConfigYaml(data string) (*GenericTracingConf, error) {
@@ -62,4 +61,32 @@ func FileConfigSpec(fileName string) (*v1alpha1.TracingPolicySpec, error) {
 
 func FileConfigYaml(fileName string) (*GenericTracingConf, error) {
 	return fileConfig(fileName)
+}
+
+type MetadataNamespaced struct {
+	Name      string `yaml:"name"`
+	Namespace string `yaml:"namespace"`
+}
+
+type GenericTracingConfNamespaced struct {
+	ApiVersion string                     `json:"apiVersion"`
+	Kind       string                     `json:"kind"`
+	Metadata   MetadataNamespaced         `json:"metadata"`
+	Spec       v1alpha1.TracingPolicySpec `json:"spec"`
+}
+
+func (cnf *GenericTracingConfNamespaced) TpNamespace() string {
+	return cnf.Metadata.Namespace
+}
+
+func (cnf *GenericTracingConfNamespaced) TpName() string {
+	return cnf.Metadata.Name
+}
+
+func (cnf *GenericTracingConfNamespaced) TpSpec() *v1alpha1.TracingPolicySpec {
+	return &cnf.Spec
+}
+
+func (cnf *GenericTracingConfNamespaced) TpInfo() string {
+	return cnf.Metadata.Name
 }

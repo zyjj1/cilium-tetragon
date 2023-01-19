@@ -12,8 +12,8 @@ import (
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/tetragon/pkg/bpf"
+	"github.com/cilium/tetragon/pkg/kernels"
 	"github.com/cilium/tetragon/pkg/option"
-	"github.com/cilium/tetragon/pkg/sensors/tracing"
 )
 
 // map operations used by policyfilter.
@@ -27,7 +27,7 @@ type pfMap struct {
 func newPfMap() (pfMap, error) {
 	// use the generic kprobe program, to find the policy filter map spec
 	mapName := "policy_filter_maps"
-	objName, _ := tracing.GenericKprobeObjs()
+	objName, _ := kernels.GenericKprobeObjs()
 	objPath := path.Join(option.Config.HubbleLib, objName)
 	spec, err := ebpf.LoadCollectionSpec(objPath)
 	if err != nil {

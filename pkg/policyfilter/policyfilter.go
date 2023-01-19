@@ -1,11 +1,21 @@
-package policyfilter
-
-import "sync"
-
 // SPDX-License-Identifier: Apache-2.0
 // Copyright Authors of Tetragon
+package policyfilter
+
+import (
+	"sync"
+)
 
 var (
-	glblState      *State
-	setGlobalState sync.Once
+	glblState   *State
+	glblError   error
+	setGlobalPf sync.Once
 )
+
+// GetState returns global state for policyfilter
+func GetPolicyFilterState() (*State, error) {
+	setGlobalPf.Do(func() {
+		glblState, glblError = New()
+	})
+	return glblState, glblError
+}
