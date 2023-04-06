@@ -341,6 +341,9 @@ func doLoadProgram(
 		if err != nil {
 			return nil, fmt.Errorf("opening BTF file '%s' failed: %w", btfFilePath, err)
 		}
+	} else {
+		// this contains module types so we still need to provide that as 'KernelTypes'.
+		btfSpec = cachedbtf.GetCachedBTF()
 	}
 
 	spec, err := ebpf.LoadCollectionSpec(load.Name)

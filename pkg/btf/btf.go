@@ -78,7 +78,47 @@ func observerFindBTF(ctx context.Context, lib, btf string) (string, error) {
 }
 
 func NewBTF() (*btf.Spec, error) {
-	return btf.LoadSpec(btfFile)
+	spec, err := btf.LoadSpec(btfFile)
+	if err != nil {
+		return nil, err
+	}
+
+	overlay := "/sys/kernel/btf/overlay"
+	f, err := os.Open(overlay)
+	if err != nil {
+		logger.GetLogger().WithError(err).Warnf("failed to open /sys/kernel/btf/overlay")
+		return spec, nil
+	}
+	defer f.Close()
+
+	splitSpec, err := btf.LoadSplitSpecFromReader(f, spec)
+	if err != nil {
+		logger.GetLogger().WithError(err).Warnf("failed to load /sys/kernel/btf/overlay")
+		return spec, nil
+	}
+
+	numSymbols := 0
+	iter := splitSpec.Iterate()
+	for {
+		if !iter.Next() {
+			break
+		}
+
+		t := iter.Type
+		id, err := spec.Add(t)
+		if err != nil {
+			name := t.TypeName()
+			if name == "" {
+				name = "ANON"
+			}
+			logger.GetLogger().WithField("id", id).WithField("name", t.TypeName()).WithError(err).Warn("failed to add type")
+		} else {
+			numSymbols++
+		}
+	}
+	logger.GetLogger().Warnf("Added %d symbols from /sys/kernel/btf/overlay", numSymbols)
+
+	return spec, nil
 }
 
 func InitCachedBTF(ctx context.Context, lib, btf string) error {
