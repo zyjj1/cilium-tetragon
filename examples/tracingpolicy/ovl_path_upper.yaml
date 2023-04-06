@@ -1,0 +1,14 @@
+# sudo ./tetragon --btf /sys/kernel/btf/vmlinux  --bpf-lib ./bpf/objs/ --config-file ./examples/tracingpolicy/ovl_path_upper.yaml
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: "ovl-path-upper"
+spec:
+  kprobes:
+  - call: "ovl_path_upper"
+    syscall: false
+    args:
+    - index: 0
+      type: "nop"
+    - index: 1
+      type: "nop"
