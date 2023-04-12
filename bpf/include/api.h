@@ -226,6 +226,10 @@ static __u64 BPF_FUNC(get_attach_cookie, void *ctx);
 
 static long BPF_FUNC(loop, __u32 nr_loops, void *callback_fn, void *callback_ctx, __u64 flags);
 
+static struct pt_regs *BPF_FUNC(task_pt_regs, struct task_struct *task);
+static struct task_struct *BPF_FUNC(get_current_task_btf);
+static long BPF_FUNC(d_path, struct path *path, char *buf, u32 sz);
+
 /** LLVM built-ins, mem*() routines work for constant size */
 
 #ifndef lock_xadd
