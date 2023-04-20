@@ -28,6 +28,7 @@ TARGETS := \
 	testdata/loader-clang-7 \
 	testdata/loader-clang-9 \
 	testdata/loader-$(CLANG) \
+	testdata/manyprogs \
 	testdata/btf_map_init \
 	testdata/invalid_map \
 	testdata/raw_tracepoint \
@@ -39,9 +40,12 @@ TARGETS := \
 	testdata/map_spin_lock \
 	testdata/subprog_reloc \
 	testdata/fwd_decl \
+	testdata/kconfig \
+	testdata/kfunc \
 	btf/testdata/relocs \
 	btf/testdata/relocs_read \
-	btf/testdata/relocs_read_tgt
+	btf/testdata/relocs_read_tgt \
+	cmd/bpf2go/testdata/minimal
 
 .PHONY: all clean container-all container-shell generate
 
@@ -77,9 +81,7 @@ all: format $(addsuffix -el.elf,$(TARGETS)) $(addsuffix -eb.elf,$(TARGETS)) gene
 generate: export BPF_CLANG := $(CLANG)
 generate: export BPF_CFLAGS := $(CFLAGS)
 generate:
-	go generate ./cmd/bpf2go/test
-	go generate ./internal/sys
-	go generate ./examples/...
+	go generate ./...
 
 testdata/loader-%-el.elf: testdata/loader.c
 	$* $(CFLAGS) -target bpfel -c $< -o $@
@@ -98,7 +100,7 @@ testdata/loader-%-eb.elf: testdata/loader.c
 	$(STRIP) -g $@
 
 .PHONY: generate-btf
-generate-btf: KERNEL_VERSION?=5.18
+generate-btf: KERNEL_VERSION?=5.19
 generate-btf:
 	$(eval TMP := $(shell mktemp -d))
 	curl -fL "$(CI_KERNEL_URL)/linux-$(KERNEL_VERSION).bz" -o "$(TMP)/bzImage"
