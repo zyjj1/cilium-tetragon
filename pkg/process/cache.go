@@ -111,7 +111,7 @@ func (pc *Cache) deletePending(process *ProcessInternal) {
 
 func (pc *Cache) refDec(p *ProcessInternal) {
 	ref := atomic.AddUint32(&p.refcnt, ^uint32(0))
-	if ref == 0 {
+	if ref <= 0 {
 		pc.deletePending(p)
 	}
 }
@@ -148,6 +148,56 @@ func NewCache(
 			select {
 			case <-ticker.C:
 				update()
+				// func() {
+				// 	PidExists := func(pid int32) (bool, error) {
+				// 		if pid <= 0 {
+				// 			return false, fmt.Errorf("invalid pid %v", pid)
+				// 		}
+				// 		proc, err := os.FindProcess(int(pid))
+				// 		if err != nil {
+				// 			return false, err
+				// 		}
+				// 		err = proc.Signal(syscall.Signal(0))
+				// 		if err == nil {
+				// 			return true, nil
+				// 		}
+				// 		if err.Error() == "os: process already finished" {
+				// 			return false, nil
+				// 		}
+				// 		errno, ok := err.(syscall.Errno)
+				// 		if !ok {
+				// 			return false, err
+				// 		}
+				// 		switch errno {
+				// 		case syscall.ESRCH:
+				// 			return false, nil
+				// 		case syscall.EPERM:
+				// 			return true, nil
+				// 		}
+				// 		return false, err
+				// 	}
+
+				// 	keys := pm.cache.Keys()
+				// 	errFound := false
+				// 	for i, k := range keys {
+				// 		if pi, err := pm.get(k); err == nil {
+				// 			pi.process.
+				// 			if ex, err := PidExists(int32(pi.process.Pid.Value)); err != nil || !ex {
+				// 				if pi.refcnt != 0 && pi.process.Pid.Value != 0 {
+				// 					pi.process.
+				// 					logger.GetLogger().Warnf("[%d] key: %s, pid: %d, binary: %s, refcnt: %d", i, k, pi.process.Pid.Value, pi.process.Binary, pi.refcnt)
+				// 					errFound = true
+				// 				}
+				// 			}
+				// 		}
+
+				// 	}
+				// 	if !errFound {
+				// 		logger.GetLogger().Warnf("processLRU check is successful with size %d", pm.cache.Len())
+				// 	} else {
+				// 		logger.GetLogger().Warnf("processLRU check completed with errors with size %d", pm.cache.Len())
+				// 	}
+				// }()
 			}
 		}
 	}()
