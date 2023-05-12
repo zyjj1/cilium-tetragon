@@ -35,7 +35,6 @@ type CacheObj struct {
 	internal  *process.ProcessInternal
 	event     notify.Event
 	timestamp uint64
-	startTime uint64
 	color     int
 	msg       notify.Message
 }
@@ -106,7 +105,7 @@ func (ec *Cache) handleEvents() {
 		// now because it should be available. Otherwise we have a valid
 		// process and lets copy it across.
 		if event.internal == nil {
-			event.internal, err = event.msg.RetryInternal(event.event, event.startTime)
+			event.internal, err = event.msg.RetryInternal(event.event, event.timestamp)
 		}
 		if err == nil {
 			err = event.msg.Retry(event.internal, event.event)
@@ -194,9 +193,8 @@ func (ec *Cache) Needed(proc *tetragon.Process) bool {
 func (ec *Cache) Add(internal *process.ProcessInternal,
 	e notify.Event,
 	t uint64,
-	s uint64,
 	msg notify.Message) {
-	ec.objsChan <- CacheObj{internal: internal, event: e, timestamp: t, startTime: s, msg: msg}
+	ec.objsChan <- CacheObj{internal: internal, event: e, timestamp: t, msg: msg}
 }
 
 func NewWithTimer(s *server.Server, dur time.Duration) *Cache {
