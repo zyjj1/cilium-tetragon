@@ -23,6 +23,12 @@ var (
 		Help:        "The total number of entries dropped per LRU map.",
 		ConstLabels: nil,
 	}, []string{"map"})
+
+	LruErrors = promauto.NewGauge(prometheus.GaugeOpts{
+		Name:        consts.MetricNamePrefix + "process_lru_errors",
+		Help:        "The total number of processLRU errors.",
+		ConstLabels: nil,
+	})
 )
 
 // Get a new handle on a mapSize metric for a mapName and totalCapacity
@@ -42,4 +48,8 @@ func MapSizeSet(mapName string, totalCapacity int, size float64) {
 
 func MapDropInc(mapName string) {
 	MapDrops.WithLabelValues(mapName).Inc()
+}
+
+func SetLRUErrors(num float64) {
+	LruErrors.Set(num)
 }

@@ -40,6 +40,7 @@ type ProcessInternal struct {
 	mu sync.Mutex
 	// externally visible process struct.
 	process *tetragon.Process
+	ktime   uint64
 	// additional internal fields below
 	capabilities *tetragon.Capabilities
 	namespaces   *tetragon.Namespaces
@@ -96,6 +97,7 @@ func (pi *ProcessInternal) GetProcessInternalCopy() *ProcessInternal {
 	defer pi.mu.Unlock()
 	return &ProcessInternal{
 		process:      proto.Clone(pi.process).(*tetragon.Process),
+		ktime:        pi.ktime,
 		capabilities: pi.capabilities,
 		namespaces:   pi.namespaces,
 		refcnt:       1,
@@ -219,6 +221,7 @@ func GetProcess(
 			ParentExecId: parentExecID,
 			Refcnt:       0,
 		},
+		ktime:        process.Ktime,
 		capabilities: caps,
 		namespaces:   ns,
 		refcnt:       1,

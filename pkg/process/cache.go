@@ -4,7 +4,13 @@
 package process
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -12,6 +18,8 @@ import (
 	"github.com/cilium/tetragon/pkg/logger"
 	"github.com/cilium/tetragon/pkg/metrics/errormetrics"
 	"github.com/cilium/tetragon/pkg/metrics/mapmetrics"
+	"github.com/cilium/tetragon/pkg/option"
+	"github.com/cilium/tetragon/pkg/reader/proc"
 	lru "github.com/hashicorp/golang-lru/v2"
 )
 
@@ -145,14 +153,139 @@ func NewCache(
 	ticker := time.NewTicker(60 * time.Second)
 	go func() {
 		for {
-			select {
-			case <-ticker.C:
-				update()
-			}
+			<-ticker.C
+			update()
+			func() {
+				numErrors := 0
+				allPIDs := printAllPidsNs(option.Config.ProcFS)
+				for i, k := range pm.cache.Keys() {
+					if pi, err := pm.get(k); err == nil {
+						if _, ok := allPIDs[procTuple{
+							pid:   int(pi.process.Pid.Value),
+							ktime: pi.ktime,
+						}]; !ok {
+							if pi.refcnt != 0 && pi.process.Pid.Value != 0 {
+								logger.GetLogger().Warnf("[%d] key: %s, pid: %d, ktime: %d, binary: %s, refcnt: %d", i, k, pi.process.Pid.Value, pi.ktime, pi.process.Binary, pi.refcnt)
+								numErrors += 1
+							}
+						}
+					}
+				}
+				if numErrors == 0 {
+					logger.GetLogger().Warnf("processLRU check is successful with cache size %d", pm.cache.Len())
+				} else {
+					logger.GetLogger().Warnf("processLRU check completed with %d errors and cache size %d", numErrors, pm.cache.Len())
+				}
+				mapmetrics.SetLRUErrors(float64(numErrors))
+			}()
 		}
 	}()
 	pm.cacheGarbageCollector()
 	return pm, nil
+}
+
+type procTuple struct {
+	pid   int
+	ktime uint64
+}
+
+func printAllPIDsFor(procPath string, pid int, ktime uint64) []procTuple {
+	retArray := make([]procTuple, 0)
+
+	// sfile := "/proc/" + strconv.Itoa(pid) + "/status"
+	sfile := filepath.Join(procPath, strconv.Itoa(pid), "status")
+
+	file, err := os.Open(sfile)
+	if err != nil {
+		// Probably, the process terminated between the time we
+		// accessed the namespace files and the time we tried to
+		// open /proc/PID/status.
+		fmt.Print("[can't open " + sfile + "]")
+		return retArray
+	}
+
+	defer file.Close() // Close file on return from this function.
+
+	re := regexp.MustCompile(":[ \t]*")
+
+	// Scan file line by line, looking for 'NStgid:' entry, and print
+	// corresponding set of PIDs.
+
+	s := bufio.NewScanner(file)
+	for s.Scan() {
+		match, _ := regexp.MatchString("^NStgid:", s.Text())
+		if match {
+			tokens := re.Split(s.Text(), -1)
+			pids := strings.Fields(tokens[1])
+			for _, p := range pids {
+				// fmt.Printf("[ %s %d ]\n", p, ktime)
+				intPid, _ := strconv.Atoi(p)
+				retArray = append(retArray, procTuple{
+					pid:   intPid,
+					ktime: ktime,
+				})
+			}
+			break
+		}
+	}
+
+	return retArray
+}
+
+func printAllPidsNs(procPath string) map[procTuple]struct{} {
+	allPIDs := make(map[procTuple]struct{})
+
+	procFS, err := os.ReadDir(procPath)
+	if err != nil {
+		return allPIDs
+	}
+
+	for _, d := range procFS {
+		if !d.IsDir() {
+			continue
+		}
+
+		pathName := filepath.Join(procPath, d.Name())
+
+		_, err := os.ReadFile(filepath.Join(pathName, "cmdline"))
+		if err != nil {
+			continue
+		}
+		// if string(cmdline) == "" {
+		// 	continue
+		// }
+
+		procPid, err := proc.GetProcPid(d.Name())
+		if err != nil {
+			logger.GetLogger().WithError(err).Warnf("pid read error")
+			continue
+		}
+
+		stats, err := proc.GetProcStatStrings(pathName)
+		if err != nil {
+			logger.GetLogger().WithError(err).Warnf("stats read error")
+			continue
+		}
+
+		ktime, err := proc.GetStatsKtime(stats)
+		if err != nil {
+			logger.GetLogger().WithError(err).Warnf("ktime read error")
+		}
+
+		realPid, _ := strconv.ParseInt(d.Name(), 10, 0)
+
+		if int64(procPid) != realPid {
+			logger.GetLogger().WithError(err).Warnf("procPid[%d] != readPid[%d]", procPid, realPid)
+		}
+
+		pidArr := printAllPIDsFor(procPath, int(realPid), ktime)
+		for _, p := range pidArr {
+			// logger.GetLogger().Warnf("===>[%d %d]", p.pid, p.ktime)
+			allPIDs[p] = struct{}{}
+		}
+	}
+
+	return allPIDs
 }
 
 func (pc *Cache) get(processID string) (*ProcessInternal, error) {
