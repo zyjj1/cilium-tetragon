@@ -206,6 +206,11 @@ generic_process_event_and_setup(struct pt_regs *ctx,
 	generic_process_init(e, MSG_OP_GENERIC_UPROBE, config);
 #endif
 
+#ifdef GENERIC_KRETPROBE
+	generic_process_init(e, MSG_OP_GENERIC_KPROBE, config);
+	e->common.flags |= MSG_COMMON_FLAG_RETURN;
+	tail_call(ctx, tailcals, TAIL_CALL_PROCESS);
+#endif
 	return generic_process_event(ctx, heap_map, tailcals, config_map, data_heap);
 }
 

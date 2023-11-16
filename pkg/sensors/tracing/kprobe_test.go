@@ -3909,19 +3909,24 @@ func TestLoadKprobeSensor(t *testing.T) {
 		5: tus.SensorProg{Name: "generic_kprobe_actions", Type: ebpf.Kprobe},
 		6: tus.SensorProg{Name: "generic_kprobe_output", Type: ebpf.Kprobe},
 		// retkprobe
-		7: tus.SensorProg{Name: "generic_retkprobe_event", Type: ebpf.Kprobe},
-		8: tus.SensorProg{Name: "generic_retkprobe_output", Type: ebpf.Kprobe},
+		7:  tus.SensorProg{Name: "generic_retkprobe_event", Type: ebpf.Kprobe},
+		8:  tus.SensorProg{Name: "generic_retkprobe_setup_event", Type: ebpf.Kprobe},
+		9:  tus.SensorProg{Name: "generic_retkprobe_process_event", Type: ebpf.Kprobe},
+		10: tus.SensorProg{Name: "generic_retkprobe_filter_arg", Type: ebpf.Kprobe},
+		11: tus.SensorProg{Name: "generic_retkprobe_process_filter", Type: ebpf.Kprobe},
+		12: tus.SensorProg{Name: "generic_retkprobe_actions", Type: ebpf.Kprobe},
+		13: tus.SensorProg{Name: "generic_retkprobe_output", Type: ebpf.Kprobe},
 	}
 
 	var sensorMaps = []tus.SensorMap{
 		// all kprobe programs
-		tus.SensorMap{Name: "process_call_heap", Progs: []uint{0, 1, 2, 3, 4, 5, 6, 7, 8}},
+		tus.SensorMap{Name: "process_call_heap", Progs: []uint{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}},
 
 		// all but generic_kprobe_output
 		tus.SensorMap{Name: "kprobe_calls", Progs: []uint{0, 1, 2, 3, 4, 5}},
 
 		// generic_retkprobe_event
-		tus.SensorMap{Name: "retkprobe_calls", Progs: []uint{7}},
+		tus.SensorMap{Name: "retkprobe_calls", Progs: []uint{7, 8, 9, 10, 11, 12}},
 
 		// generic_kprobe_process_filter,generic_kprobe_filter_arg,
 		// generic_kprobe_actions,generic_kprobe_output
@@ -3934,27 +3939,27 @@ func TestLoadKprobeSensor(t *testing.T) {
 		tus.SensorMap{Name: "config_map", Progs: []uint{0, 1, 2, 3}},
 
 		// generic_kprobe_process_event*,generic_kprobe_actions,retkprobe
-		tus.SensorMap{Name: "fdinstall_map", Progs: []uint{1, 2, 5, 7}},
+		tus.SensorMap{Name: "fdinstall_map", Progs: []uint{1, 2, 5, 8, 9, 12}},
 
 		// generic_kprobe_event
-		tus.SensorMap{Name: "tg_conf_map", Progs: []uint{0}},
+		tus.SensorMap{Name: "tg_conf_map", Progs: []uint{0, 7}},
 	}
 
 	if kernels.EnableLargeProgs() {
 		// shared with base sensor
-		sensorMaps = append(sensorMaps, tus.SensorMap{Name: "execve_map", Progs: []uint{0, 3, 4, 5, 6, 7}})
+		sensorMaps = append(sensorMaps, tus.SensorMap{Name: "execve_map", Progs: []uint{0, 3, 4, 5, 6, 7, 10, 11, 12}})
 
 		// generic_kprobe_process_event*,generic_kprobe_output,generic_retkprobe_output
-		sensorMaps = append(sensorMaps, tus.SensorMap{Name: "tcpmon_map", Progs: []uint{1, 2, 6, 8}})
+		sensorMaps = append(sensorMaps, tus.SensorMap{Name: "tcpmon_map", Progs: []uint{1, 2, 6, 13}})
 
 		// generic_kprobe_process_event*,generic_kprobe_actions,retkprobe
-		sensorMaps = append(sensorMaps, tus.SensorMap{Name: "socktrack_map", Progs: []uint{1, 2, 5, 7}})
+		sensorMaps = append(sensorMaps, tus.SensorMap{Name: "socktrack_map", Progs: []uint{1, 2, 5, 8, 9, 12}})
 	} else {
 		// shared with base sensor
 		sensorMaps = append(sensorMaps, tus.SensorMap{Name: "execve_map", Progs: []uint{0, 3, 4, 7}})
 
 		// generic_kprobe_output,generic_retkprobe_output
-		sensorMaps = append(sensorMaps, tus.SensorMap{Name: "tcpmon_map", Progs: []uint{6, 8}})
+		sensorMaps = append(sensorMaps, tus.SensorMap{Name: "tcpmon_map", Progs: []uint{6, 8, 10}})
 	}
 
 	readHook := `

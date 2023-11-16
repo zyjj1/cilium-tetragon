@@ -11,6 +11,8 @@
 #include "bpf_task.h"
 #include "retprobe_map.h"
 #include "types/basic.h"
+#include "pfilter.h"
+#include "generic_calls.h"
 
 #define MAX_FILENAME 8096
 
@@ -25,7 +27,7 @@ struct {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
-	__uint(max_entries, 1);
+	__uint(max_entries, 13);
 	__uint(key_size, sizeof(__u32));
 	__uint(value_size, sizeof(__u32));
 } retkprobe_calls SEC(".maps");
@@ -69,13 +71,29 @@ struct {
 __attribute__((section((MAIN)), used)) int
 BPF_KRETPROBE(generic_retkprobe_event, unsigned long ret)
 {
-	struct execve_map_value *enter;
+	return generic_kprobe_start_process_filter(
+		ctx, (struct bpf_map_def *)&process_call_heap,
+		(struct bpf_map_def *)&retkprobe_calls,
+		(struct bpf_map_def *)&config_map);
+}
+
+__attribute__((section("kprobe/0"), used)) int
+BPF_KRETPROBE(generic_retkprobe_setup_event, unsigned long ret)
+{
+	return generic_process_event_and_setup(
+		ctx, (struct bpf_map_def *)&process_call_heap,
+		(struct bpf_map_def *)&retkprobe_calls,
+		(struct bpf_map_def *)&config_map,
+		NULL);
+}
+
+__attribute__((section("kprobe/1"), used)) int
+BPF_KRETPROBE(generic_retkprobe_process_event, unsigned long ret)
+{
 	struct msg_generic_kprobe *e;
 	struct retprobe_info info;
 	struct event_config *config;
-	bool walker = false;
 	int zero = 0;
-	__u32 ppid;
 	long size = 0;
 	long ty_arg, do_copy;
 	__u64 pid_tgid;
@@ -138,33 +156,53 @@ BPF_KRETPROBE(generic_retkprobe_event, unsigned long ret)
 		break;
 	}
 
-	/* Complete message header and send */
-	enter = event_find_curr(&ppid, &walker);
-
-	e->common.op = MSG_OP_GENERIC_KPROBE;
-	e->common.flags |= MSG_COMMON_FLAG_RETURN;
-	e->common.pad[0] = 0;
-	e->common.pad[1] = 0;
-	e->common.size = size;
-	e->common.ktime = ktime_get_ns();
-
-	if (enter) {
-		e->current.pid = enter->key.pid;
-		e->current.ktime = enter->key.ktime;
-	}
-	e->current.pad[0] = 0;
-	e->current.pad[1] = 0;
-	e->current.pad[2] = 0;
-	e->current.pad[3] = 0;
-
-	e->func_id = config->func_id;
 	e->common.size = size;
 
-	tail_call(ctx, &retkprobe_calls, 0);
+	tail_call(ctx, &retkprobe_calls, TAIL_CALL_ARGS);
 	return 1;
 }
 
-__attribute__((section("kprobe/0"), used)) int
+__attribute__((section("kprobe/2"), used)) int
+BPF_KRETPROBE(generic_retkprobe_process_filter)
+{
+	struct msg_generic_kprobe *msg;
+	int ret, zero = 0;
+
+	msg = map_lookup_elem(&process_call_heap, &zero);
+	if (!msg)
+		return 0;
+
+	ret = generic_process_filter(&msg->sel, &msg->current, &msg->ns,
+				     &msg->caps, &filter_map, msg->idx);
+	if (ret == PFILTER_CONTINUE)
+		tail_call(ctx, &retkprobe_calls, TAIL_CALL_FILTER);
+	else if (ret == PFILTER_ACCEPT)
+		tail_call(ctx, &retkprobe_calls, 0);
+	/* If filter does not accept drop it. Ideally we would
+	 * log error codes for later review, TBD.
+	 */
+	return PFILTER_REJECT;
+}
+
+__attribute__((section("kprobe/3"), used)) int
+BPF_KRETPROBE(generic_retkprobe_filter_arg)
+{
+	return filter_read_arg(ctx, (struct bpf_map_def *)&process_call_heap,
+			       (struct bpf_map_def *)&filter_map,
+			       (struct bpf_map_def *)&retkprobe_calls,
+			       (struct bpf_map_def *)&config_map);
+}
+
+__attribute__((section("kprobe/4"), used)) int
+BPF_KRETPROBE(generic_retkprobe_actions)
+{
+	return generic_actions(ctx, (struct bpf_map_def *)&process_call_heap,
+			       (struct bpf_map_def *)&filter_map,
+			       (struct bpf_map_def *)&retkprobe_calls,
+			       NULL);
+}
+
+__attribute__((section("kprobe/5"), used)) int
 BPF_KRETPROBE(generic_retkprobe_output)
 {
 	return generic_output(ctx, (struct bpf_map_def *)&process_call_heap, MSG_OP_GENERIC_KPROBE);
