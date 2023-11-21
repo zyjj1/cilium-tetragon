@@ -1656,6 +1656,7 @@ func retprobeMerge(prev pendingEvent, curr pendingEvent) *tracing.MsgGenericKpro
 			enterEv.Args = append(enterEv.Args, retArg)
 		}
 	}
+	enterEv.ReturnAction = retEv.Action
 	return enterEv
 }
 
