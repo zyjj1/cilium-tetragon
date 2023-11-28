@@ -6,6 +6,7 @@
 
 #include "bpf_tracing.h"
 #include "types/basic.h"
+#include "policy_filter.h"
 
 #define MAX_TOTAL 9000
 
@@ -93,6 +94,56 @@ generic_process_init(struct msg_generic_kprobe *e, u8 op, struct event_config *c
 	 *  At kprobes, tracpoints etc we report the calling thread ID to user space.
 	 */
 	e->tid = (__u32)get_current_pid_tgid();
+}
+
+static inline __attribute__((always_inline)) int
+generic_kprobe_start_process_filter(void *ctx, struct bpf_map_def *process_call_heap,
+				    struct bpf_map_def *kprobe_calls,
+				    struct bpf_map_def *config_map)
+{
+	struct msg_generic_kprobe *msg;
+	struct event_config *config;
+	struct task_struct *task;
+	int i, zero = 0;
+
+	msg = map_lookup_elem(process_call_heap, &zero);
+	if (!msg)
+		return 0;
+
+	/* setup index, check policy filter, and setup function id */
+	msg->idx = get_index(ctx);
+	config = map_lookup_elem(config_map, &msg->idx);
+	if (!config)
+		return 0;
+	if (!generic_process_filter_binary(config))
+		return 0;
+	if (!policy_filter_check(config->policy_id))
+		return 0;
+	msg->func_id = config->func_id;
+
+	/* Initialize selector index to 0 */
+	msg->sel.curr = 0;
+#pragma unroll
+	for (i = 0; i < MAX_CONFIGURED_SELECTORS; i++)
+		msg->sel.active[i] = 0;
+	/* Initialize accept field to reject */
+	msg->sel.pass = false;
+	msg->filter_tailcall_index = 0;
+	task = (struct task_struct *)get_current_task();
+	/* Initialize namespaces to apply filters on them */
+	get_namespaces(&(msg->ns), task);
+	/* Initialize capabilities to apply filters on them */
+	get_current_subj_caps(&msg->caps, task);
+#ifdef __NS_CHANGES_FILTER
+	msg->sel.match_ns = 0;
+#endif
+#ifdef __CAP_CHANGES_FILTER
+	msg->sel.match_cap = 0;
+#endif
+
+	/* Tail call into filters. */
+	tail_call(ctx, kprobe_calls, TAIL_CALL_FILTER);
+	return 0;
 }
 
 static inline __attribute__((always_inline)) int
