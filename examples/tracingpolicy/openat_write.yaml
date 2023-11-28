@@ -22,7 +22,7 @@ spec:
       - index: 1
         operator: "Equal"
         values:
-        - "/etc/passwd"
+        - "/tmp/krava"
       - index: 2
         operator: "Mask"
         values:
