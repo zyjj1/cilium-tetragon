@@ -161,6 +161,8 @@ const (
 
 	argTypeUrl  = 18
 	argTypeFqdn = 19
+
+	argTypeSyscall64 = 28
 )
 
 var argTypeTable = map[string]uint32{
@@ -180,6 +182,7 @@ var argTypeTable = map[string]uint32{
 	"sock":       argTypeSock,
 	"url":        argTypeUrl,
 	"fqdn":       argTypeFqdn,
+	"syscall64":  argTypeSyscall64,
 }
 
 var argTypeStringTable = map[uint32]string{
@@ -199,6 +202,7 @@ var argTypeStringTable = map[uint32]string{
 	argTypeSock:      "sock",
 	argTypeUrl:       "url",
 	argTypeFqdn:      "fqdn",
+	argTypeSyscall64: "syscall64",
 }
 
 const (
@@ -523,7 +527,7 @@ func writeListValuesInMap(k *KernelSelectorState, v string, ty uint32, m *ValueM
 		var val [8]byte
 
 		switch ty {
-		case argTypeS64, argTypeInt:
+		case argTypeS64, argTypeInt, argTypeSyscall64:
 			binary.LittleEndian.PutUint64(val[:], uint64(values[idx]))
 		case argTypeU64:
 			binary.LittleEndian.PutUint64(val[:], uint64(values[idx]))
@@ -556,7 +560,7 @@ func writeMatchValuesInMap(k *KernelSelectorState, values []string, ty uint32, o
 			continue
 		}
 		switch ty {
-		case argTypeS64, argTypeInt:
+		case argTypeS64, argTypeInt, argTypeSyscall64:
 			i, err := strconv.ParseInt(v, 10, 64)
 			if err != nil {
 				return fmt.Errorf("MatchArgs value %s invalid: %w", v, err)
