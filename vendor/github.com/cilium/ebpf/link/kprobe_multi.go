@@ -1,6 +1,8 @@
 package link
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
@@ -178,3 +180,47 @@ var haveBPFLinkKprobeMulti = internal.NewFeatureTest("bpf_link_kprobe_multi", "5
 
 	return nil
 })
+
+type KprobeMultiInfo struct {
+	Addrs  []uint64
+	Count  uint32
+	Flags  uint32
+	Missed uint64
+}
+
+// KprobeMulti returns kprobe multi type-specific link info.
+//
+// Returns nil if the type-specific link info isn't available.
+func (r Info) KprobeMulti() *KprobeMultiInfo {
+	e, _ := r.extra.(*KprobeMultiInfo)
+	return e
+}
+
+func (l *kprobeMultiLink) Info() (*Info, error) {
+	var info sys.LinkInfo
+	var kmulti sys.KprobeMultiLinkInfo
+
+	if err := sys.ObjInfo(l.fd, &info); err != nil {
+		return nil, fmt.Errorf("link info: %s", err)
+	}
+
+	buf := bytes.NewReader(info.Extra[:])
+	err := binary.Read(buf, internal.NativeEndian, &kmulti)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read link info: %w", err)
+	}
+
+	// TODO do syscall again with proper count/addrs setup
+	// and get addresess, so far static info is enough
+
+	return &Info{
+		info.Type,
+		info.Id,
+		ebpf.ProgramID(info.ProgId),
+		&KprobeMultiInfo{
+			Count:  kmulti.Count,
+			Flags:  kmulti.Flags,
+			Missed: kmulti.Missed,
+		},
+	}, nil
+}

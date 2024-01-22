@@ -1,6 +1,8 @@
 package link
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"runtime"
@@ -152,6 +154,94 @@ func (pi *perfEventIoctl) Unpin() error {
 
 func (pi *perfEventIoctl) Info() (*Info, error) {
 	return nil, fmt.Errorf("perf event ioctl info: %w", ErrNotSupported)
+}
+
+type PerfEventInfo struct {
+	Type  PerfEventInfoType
+	extra interface{}
+}
+
+type KprobeInfo sys.KprobeLinkInfo
+type UprobeInfo sys.UprobeLinkInfo
+type TracepointInfo sys.TracepointLinkInfo
+type EventInfo sys.EventLinkInfo
+
+// PerfEvent returns perf event type-specific link info.
+//
+// Returns nil if the type-specific link info isn't available.
+func (r Info) PerfEvent() *PerfEventInfo {
+	e, _ := r.extra.(*PerfEventInfo)
+	return e
+}
+
+func (r *PerfEventInfo) Kprobe() *KprobeInfo {
+	e, _ := r.extra.(*KprobeInfo)
+	return e
+}
+
+func (r *PerfEventInfo) Uprobe() *UprobeInfo {
+	e, _ := r.extra.(*UprobeInfo)
+	return e
+}
+
+func (r *PerfEventInfo) Tracepoint() *TracepointInfo {
+	e, _ := r.extra.(*TracepointInfo)
+	return e
+}
+
+func (r *PerfEventInfo) Event() *EventInfo {
+	e, _ := r.extra.(*EventInfo)
+	return e
+}
+
+func (pl *perfEventLink) Info() (*Info, error) {
+	var info sys.LinkInfo
+	var err error
+
+	if err = sys.ObjInfo(pl.fd, &info); err != nil {
+		return nil, fmt.Errorf("link info: %s", err)
+	}
+
+	var buf *bytes.Reader
+	var pevent sys.PerfEventLinkInfo
+
+	buf = bytes.NewReader(info.Extra[:])
+	err = binary.Read(buf, internal.NativeEndian, &pevent)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read extra link info: %w", err)
+	}
+
+	var extra interface{}
+	switch pevent.Type {
+	case sys.BPF_PERF_EVENT_KPROBE, sys.BPF_PERF_EVENT_KRETPROBE:
+		extra = &KprobeInfo{}
+	case sys.BPF_PERF_EVENT_UPROBE, sys.BPF_PERF_EVENT_URETPROBE:
+		extra = &UprobeInfo{}
+	case sys.BPF_PERF_EVENT_TRACEPOINT:
+		extra = &TracepointInfo{}
+	case sys.BPF_PERF_EVENT_EVENT:
+		extra = &EventInfo{}
+	}
+
+	if extra == nil {
+		return nil, fmt.Errorf("perf event ioctl info: %w", ErrNotSupported)
+	}
+
+	buf = bytes.NewReader(pevent.Extra[:])
+	err = binary.Read(buf, internal.NativeEndian, extra)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read extra link info: %w", err)
+	}
+
+	return &Info{
+		info.Type,
+		info.Id,
+		ebpf.ProgramID(info.ProgId),
+		&PerfEventInfo{
+			pevent.Type,
+			extra,
+		},
+	}, nil
 }
 
 // attach the given eBPF prog to the perf event stored in pe.

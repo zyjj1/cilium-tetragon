@@ -27,6 +27,19 @@ const (
 	TCXType           = sys.BPF_LINK_TYPE_TCX
 )
 
+type PerfEventInfoType = sys.PerfEventType
+
+// Valid perf event link info types.
+const (
+	UnspecifiedPEIType = sys.BPF_PERF_EVENT_UNSPEC
+	KprobePEIType      = sys.BPF_PERF_EVENT_KPROBE
+	KretprobePEIType   = sys.BPF_PERF_EVENT_KRETPROBE
+	UprobePEIType      = sys.BPF_PERF_EVENT_UPROBE
+	UretprobePEIType   = sys.BPF_PERF_EVENT_URETPROBE
+	TracepointPEIType  = sys.BPF_PERF_EVENT_TRACEPOINT
+	EventPEIype        = sys.BPF_PERF_EVENT_EVENT
+)
+
 var haveProgAttach = internal.NewFeatureTest("BPF_PROG_ATTACH", "4.10", func() error {
 	prog, err := ebpf.NewProgram(&ebpf.ProgramSpec{
 		Type:    ebpf.CGroupSKB,
@@ -116,6 +129,27 @@ var haveProgQuery = internal.NewFeatureTest("BPF_PROG_QUERY", "4.15", func() err
 	}
 
 	err := sys.ProgQuery(&attr)
+
+	if errors.Is(err, unix.EBADF) {
+		return nil
+	}
+	if err != nil {
+		return ErrNotSupported
+	}
+	return errors.New("syscall succeeded unexpectedly")
+})
+
+var haveTCX = internal.NewFeatureTest("tcx", "6.6", func() error {
+	attr := sys.LinkCreateTcxAttr{
+		// We rely on this being checked during the syscall.
+		// With an otherwise correct payload we expect EBADF here
+		// as an indication that the feature is present.
+		ProgFd:        ^uint32(0),
+		TargetIfindex: ^uint32(0),
+		AttachType:    sys.AttachType(ebpf.AttachTCXIngress),
+	}
+
+	_, err := sys.LinkCreateTcx(&attr)
 
 	if errors.Is(err, unix.EBADF) {
 		return nil
