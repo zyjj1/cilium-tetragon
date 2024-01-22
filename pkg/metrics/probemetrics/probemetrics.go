@@ -33,15 +33,16 @@ var (
 )
 
 func Store(id uint32, policy, attach string, missed float64) {
-	if stat, found := stats[Key{id, attach}]; found {
+	key := Key{id, attach}
+	if stat, found := stats[key]; found {
 		stat.missed = missed
-		return
+		stats[key] = stat
 	}
 
 	lock.Lock()
 	defer lock.Unlock()
 
-	stats[Key{id, attach}] = Stat{
+	stats[key] = Stat{
 		policy: policy,
 		missed: missed,
 	}
