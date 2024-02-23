@@ -31,7 +31,7 @@ type AttachFunc func(*ebpf.Collection, *ebpf.CollectionSpec, *ebpf.Program, *ebp
 type OpenFunc func(*ebpf.CollectionSpec) error
 
 type customInstall struct {
-	mapName   string
+	m         *Map
 	secPrefix string
 }
 
@@ -434,7 +434,7 @@ func LoadTracepointProgram(bpfDir string, load *Program, verbose int) error {
 	var ci *customInstall
 	for mName, m := range load.PinMap {
 		if mName == "tp_calls" || mName == "execve_calls" {
-			ci = &customInstall{m.PinName, "tracepoint"}
+			ci = &customInstall{m, "tracepoint"}
 			break
 		}
 	}
@@ -456,7 +456,7 @@ func LoadKprobeProgram(bpfDir string, load *Program, verbose int) error {
 	var ci *customInstall
 	for mName, m := range load.PinMap {
 		if mName == "kprobe_calls" || mName == "retkprobe_calls" {
-			ci = &customInstall{m.PinName, "kprobe"}
+			ci = &customInstall{m, "kprobe"}
 			break
 		}
 	}
@@ -501,7 +501,7 @@ func LoadUprobeProgram(bpfDir string, load *Program, verbose int) error {
 	var ci *customInstall
 	for mName, m := range load.PinMap {
 		if mName == "uprobe_calls" {
-			ci = &customInstall{m.PinName, "uprobe"}
+			ci = &customInstall{m, "uprobe"}
 			break
 		}
 	}
@@ -516,7 +516,7 @@ func LoadMultiKprobeProgram(bpfDir string, load *Program, verbose int) error {
 	var ci *customInstall
 	for mName, m := range load.PinMap {
 		if mName == "kprobe_calls" || mName == "retkprobe_calls" {
-			ci = &customInstall{m.PinName, "kprobe"}
+			ci = &customInstall{m, "kprobe"}
 			break
 		}
 	}
@@ -621,8 +621,8 @@ func installTailCalls(bpfDir string, spec *ebpf.CollectionSpec, coll *ebpf.Colle
 		secToProgName[prog.SectionName] = name
 	}
 
-	install := func(mapName string, secPrefix string) error {
-		tailCallsMap, err := ebpf.LoadPinnedMap(filepath.Join(bpfDir, mapName), nil)
+	install := func(pinPath string, secPrefix string) error {
+		tailCallsMap, err := ebpf.LoadPinnedMap(filepath.Join(bpfDir, pinPath), nil)
 		if err != nil {
 			return nil
 		}
@@ -634,7 +634,7 @@ func installTailCalls(bpfDir string, spec *ebpf.CollectionSpec, coll *ebpf.Colle
 				if prog, ok := coll.Programs[progName]; ok {
 					err := tailCallsMap.Update(uint32(i), uint32(prog.FD()), ebpf.UpdateAny)
 					if err != nil {
-						return fmt.Errorf("update of tail-call map '%s' failed: %w", mapName, err)
+						return fmt.Errorf("update of tail-call map '%s' failed: %w", pinPath, err)
 					}
 				}
 			}
@@ -652,7 +652,7 @@ func installTailCalls(bpfDir string, spec *ebpf.CollectionSpec, coll *ebpf.Colle
 		return err
 	}
 	if ci != nil {
-		if err := install(ci.mapName, ci.secPrefix); err != nil {
+		if err := install(ci.m.PinPath, ci.secPrefix); err != nil {
 			return err
 		}
 	}
