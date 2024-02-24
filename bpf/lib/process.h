@@ -283,6 +283,14 @@ struct heap_exe {
 	__u32 error;
 }; // All fields aligned so no 'packed' attribute.
 
+struct msg_throttle_event {
+	struct msg_common common;
+	struct msg_k8s kube;
+	struct msg_execve_key parent;
+	__u64 parent_flags;
+	__u64 rate;
+};
+
 struct msg_execve_event {
 	struct msg_common common;
 	struct msg_k8s kube;

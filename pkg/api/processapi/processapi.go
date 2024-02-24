@@ -215,6 +215,14 @@ type MsgCgroupEvent struct {
 	Path          [CGROUP_PATH_LENGTH]byte `align:"path"`           // Full path of the cgroup on fs
 }
 
+type MsgThrottleEvent struct {
+	Common      MsgCommon
+	Kube        MsgK8s
+	Parent      MsgExecveKey
+	ParentFlags uint64
+	Rate        uint64
+}
+
 type KernelStats struct {
 	SentFailed [256]uint64 `align:"sent_failed"`
 }
