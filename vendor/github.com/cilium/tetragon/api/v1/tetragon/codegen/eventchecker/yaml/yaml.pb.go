@@ -142,6 +142,7 @@ func (conf *EventCheckerConf) WriteYamlFile(file string) error {
 type eventCheckerHelper struct {
 	ProcessExec       *eventchecker.ProcessExecChecker       `json:"exec,omitempty"`
 	ProcessExit       *eventchecker.ProcessExitChecker       `json:"exit,omitempty"`
+	ProcessThrottle   *eventchecker.ProcessThrottleChecker   `json:"throttle,omitempty"`
 	ProcessKprobe     *eventchecker.ProcessKprobeChecker     `json:"kprobe,omitempty"`
 	ProcessTracepoint *eventchecker.ProcessTracepointChecker `json:"tracepoint,omitempty"`
 	ProcessUprobe     *eventchecker.ProcessUprobeChecker     `json:"uprobe,omitempty"`
@@ -173,6 +174,12 @@ func (checker *EventChecker) UnmarshalJSON(b []byte) error {
 			return fmt.Errorf("EventChecker: cannot define more than one checker, got %T but already had %T", helper.ProcessExit, eventChecker)
 		}
 		eventChecker = helper.ProcessExit
+	}
+	if helper.ProcessThrottle != nil {
+		if eventChecker != nil {
+			return fmt.Errorf("EventChecker: cannot define more than one checker, got %T but already had %T", helper.ProcessThrottle, eventChecker)
+		}
+		eventChecker = helper.ProcessThrottle
 	}
 	if helper.ProcessKprobe != nil {
 		if eventChecker != nil {
@@ -222,6 +229,8 @@ func (checker EventChecker) MarshalJSON() ([]byte, error) {
 		helper.ProcessExec = c
 	case *eventchecker.ProcessExitChecker:
 		helper.ProcessExit = c
+	case *eventchecker.ProcessThrottleChecker:
+		helper.ProcessThrottle = c
 	case *eventchecker.ProcessKprobeChecker:
 		helper.ProcessKprobe = c
 	case *eventchecker.ProcessTracepointChecker:

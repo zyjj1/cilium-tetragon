@@ -44,6 +44,7 @@
     - [ProcessExit](#tetragon-ProcessExit)
     - [ProcessKprobe](#tetragon-ProcessKprobe)
     - [ProcessLoader](#tetragon-ProcessLoader)
+    - [ProcessThrottle](#tetragon-ProcessThrottle)
     - [ProcessTracepoint](#tetragon-ProcessTracepoint)
     - [ProcessUprobe](#tetragon-ProcessUprobe)
     - [RuntimeHookRequest](#tetragon-RuntimeHookRequest)
@@ -891,6 +892,23 @@ loader sensor event triggered for loaded binary/library
 
 
 
+<a name="tetragon-ProcessThrottle"></a>
+
+### ProcessThrottle
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| process | [Process](#tetragon-Process) |  | Process that triggered the exec. |
+| parent | [Process](#tetragon-Process) |  | Immediate parent of the process. |
+| rate | [uint64](#uint64) |  | Throttled rate |
+
+
+
+
+
+
 <a name="tetragon-ProcessTracepoint"></a>
 
 ### ProcessTracepoint
@@ -1202,6 +1220,7 @@ AggregationOptions defines configuration options for aggregating events.
 | process_tracepoint | [ProcessTracepoint](#tetragon-ProcessTracepoint) |  | ProcessTracepoint contains information about the pre-defined tracepoint and the process that invoked them. |
 | process_loader | [ProcessLoader](#tetragon-ProcessLoader) |  |  |
 | process_uprobe | [ProcessUprobe](#tetragon-ProcessUprobe) |  |  |
+| process_throttle | [ProcessThrottle](#tetragon-ProcessThrottle) |  |  |
 | test | [Test](#tetragon-Test) |  |  |
 | rate_limit_info | [RateLimitInfo](#tetragon-RateLimitInfo) |  |  |
 | node_name | [string](#string) |  | Name of the node where this event was observed. |
@@ -1247,6 +1266,7 @@ GetEventsResponse event oneof.
 | PROCESS_TRACEPOINT | 10 |  |
 | PROCESS_LOADER | 11 |  |
 | PROCESS_UPROBE | 12 |  |
+| PROCESS_THROTTLE | 13 |  |
 | TEST | 40000 |  |
 | RATE_LIMIT_INFO | 40001 |  |
 

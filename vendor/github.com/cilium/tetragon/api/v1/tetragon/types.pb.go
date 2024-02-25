@@ -71,6 +71,26 @@ func (event *ProcessExit) SetParent(p *Process) {
 
 // Encapsulate implements the Event interface.
 // Returns the event wrapped by its GetEventsResponse_* type.
+func (event *ProcessThrottle) Encapsulate() IsGetEventsResponse_Event {
+	return &GetEventsResponse_ProcessThrottle{
+		ProcessThrottle: event,
+	}
+}
+
+// SetProcess implements the ProcessEvent interface.
+// Sets the Process field of an event.
+func (event *ProcessThrottle) SetProcess(p *Process) {
+	event.Process = p
+}
+
+// SetParent implements the ParentEvent interface.
+// Sets the Parent field of an event.
+func (event *ProcessThrottle) SetParent(p *Process) {
+	event.Parent = p
+}
+
+// Encapsulate implements the Event interface.
+// Returns the event wrapped by its GetEventsResponse_* type.
 func (event *ProcessKprobe) Encapsulate() IsGetEventsResponse_Event {
 	return &GetEventsResponse_ProcessKprobe{
 		ProcessKprobe: event,
@@ -170,6 +190,8 @@ func UnwrapGetEventsResponse(response *GetEventsResponse) interface{} {
 		return ev.ProcessExec
 	case *GetEventsResponse_ProcessExit:
 		return ev.ProcessExit
+	case *GetEventsResponse_ProcessThrottle:
+		return ev.ProcessThrottle
 	case *GetEventsResponse_ProcessKprobe:
 		return ev.ProcessKprobe
 	case *GetEventsResponse_ProcessTracepoint:

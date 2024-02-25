@@ -268,6 +268,8 @@ func CheckerFromEvent(event Event) (EventChecker, error) {
 		return NewProcessExecChecker("").FromProcessExec(ev), nil
 	case *tetragon.ProcessExit:
 		return NewProcessExitChecker("").FromProcessExit(ev), nil
+	case *tetragon.ProcessThrottle:
+		return NewProcessThrottleChecker("").FromProcessThrottle(ev), nil
 	case *tetragon.ProcessKprobe:
 		return NewProcessKprobeChecker("").FromProcessKprobe(ev), nil
 	case *tetragon.ProcessTracepoint:
@@ -328,6 +330,8 @@ func EventFromResponse(response *tetragon.GetEventsResponse) (Event, error) {
 		return ev.ProcessExec, nil
 	case *tetragon.GetEventsResponse_ProcessExit:
 		return ev.ProcessExit, nil
+	case *tetragon.GetEventsResponse_ProcessThrottle:
+		return ev.ProcessThrottle, nil
 	case *tetragon.GetEventsResponse_ProcessKprobe:
 		return ev.ProcessKprobe, nil
 	case *tetragon.GetEventsResponse_ProcessTracepoint:
@@ -691,6 +695,112 @@ func (checker *ProcessExitChecker) FromProcessExit(event *tetragon.ProcessExit) 
 	}
 	// NB: We don't want to match timestamps for now
 	checker.Time = nil
+	return checker
+}
+
+// ProcessThrottleChecker implements a checker struct to check a ProcessThrottle event
+type ProcessThrottleChecker struct {
+	CheckerName string          `json:"checkerName"`
+	Process     *ProcessChecker `json:"process,omitempty"`
+	Parent      *ProcessChecker `json:"parent,omitempty"`
+	Rate        *uint64         `json:"rate,omitempty"`
+}
+
+// CheckEvent checks a single event and implements the EventChecker interface
+func (checker *ProcessThrottleChecker) CheckEvent(event Event) error {
+	if ev, ok := event.(*tetragon.ProcessThrottle); ok {
+		return checker.Check(ev)
+	}
+	return fmt.Errorf("%s: %T is not a ProcessThrottle event", CheckerLogPrefix(checker), event)
+}
+
+// CheckResponse checks a single gRPC response and implements the EventChecker interface
+func (checker *ProcessThrottleChecker) CheckResponse(response *tetragon.GetEventsResponse) error {
+	event, err := EventFromResponse(response)
+	if err != nil {
+		return err
+	}
+	return checker.CheckEvent(event)
+}
+
+// NewProcessThrottleChecker creates a new ProcessThrottleChecker
+func NewProcessThrottleChecker(name string) *ProcessThrottleChecker {
+	return &ProcessThrottleChecker{CheckerName: name}
+}
+
+// Get the name associated with the checker
+func (checker *ProcessThrottleChecker) GetCheckerName() string {
+	return checker.CheckerName
+}
+
+// Get the type of the checker as a string
+func (checker *ProcessThrottleChecker) GetCheckerType() string {
+	return "ProcessThrottleChecker"
+}
+
+// Check checks a ProcessThrottle event
+func (checker *ProcessThrottleChecker) Check(event *tetragon.ProcessThrottle) error {
+	if event == nil {
+		return fmt.Errorf("%s: ProcessThrottle event is nil", CheckerLogPrefix(checker))
+	}
+
+	fieldChecks := func() error {
+		if checker.Process != nil {
+			if err := checker.Process.Check(event.Process); err != nil {
+				return fmt.Errorf("Process check failed: %w", err)
+			}
+		}
+		if checker.Parent != nil {
+			if err := checker.Parent.Check(event.Parent); err != nil {
+				return fmt.Errorf("Parent check failed: %w", err)
+			}
+		}
+		if checker.Rate != nil {
+			if *checker.Rate != event.Rate {
+				return fmt.Errorf("Rate has value %d which does not match expected value %d", event.Rate, *checker.Rate)
+			}
+		}
+		return nil
+	}
+	if err := fieldChecks(); err != nil {
+		return fmt.Errorf("%s: %w", CheckerLogPrefix(checker), err)
+	}
+	return nil
+}
+
+// WithProcess adds a Process check to the ProcessThrottleChecker
+func (checker *ProcessThrottleChecker) WithProcess(check *ProcessChecker) *ProcessThrottleChecker {
+	checker.Process = check
+	return checker
+}
+
+// WithParent adds a Parent check to the ProcessThrottleChecker
+func (checker *ProcessThrottleChecker) WithParent(check *ProcessChecker) *ProcessThrottleChecker {
+	checker.Parent = check
+	return checker
+}
+
+// WithRate adds a Rate check to the ProcessThrottleChecker
+func (checker *ProcessThrottleChecker) WithRate(check uint64) *ProcessThrottleChecker {
+	checker.Rate = &check
+	return checker
+}
+
+//FromProcessThrottle populates the ProcessThrottleChecker using data from a ProcessThrottle event
+func (checker *ProcessThrottleChecker) FromProcessThrottle(event *tetragon.ProcessThrottle) *ProcessThrottleChecker {
+	if event == nil {
+		return checker
+	}
+	if event.Process != nil {
+		checker.Process = NewProcessChecker().FromProcess(event.Process)
+	}
+	if event.Parent != nil {
+		checker.Parent = NewProcessChecker().FromProcess(event.Parent)
+	}
+	{
+		val := event.Rate
+		checker.Rate = &val
+	}
 	return checker
 }
 

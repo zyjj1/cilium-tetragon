@@ -287,6 +287,15 @@ message ProcessExit {
     google.protobuf.Timestamp time = 5;
 }
 
+message ProcessThrottle {
+    // Process that triggered the exec.
+    Process process = 1;
+    // Immediate parent of the process.
+    Process parent = 2;
+    // Throttled rate
+    uint64 rate = 3;
+}
+
 message KprobeSock {
     string family = 1;
     string type = 2;

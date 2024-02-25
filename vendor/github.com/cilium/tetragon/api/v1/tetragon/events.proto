@@ -24,6 +24,7 @@ enum EventType {
     PROCESS_TRACEPOINT = 10;
     PROCESS_LOADER = 11;
     PROCESS_UPROBE = 12;
+    PROCESS_THROTTLE = 13;
 
     TEST = 40000;
     RATE_LIMIT_INFO = 40001;
@@ -131,7 +132,8 @@ message GetEventsResponse {
         // tracepoint and the process that invoked them.
         ProcessTracepoint process_tracepoint = 10;
         ProcessLoader process_loader = 11;
-        ProcessUprobe process_uprobe = 12;
+	ProcessUprobe process_uprobe = 12;
+        ProcessThrottle process_throttle = 13;
 
         Test test = 40000;
         RateLimitInfo rate_limit_info = 40001;
