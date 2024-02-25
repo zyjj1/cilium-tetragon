@@ -280,6 +280,8 @@ func CheckerFromEvent(event Event) (EventChecker, error) {
 		return NewProcessLoaderChecker("").FromProcessLoader(ev), nil
 	case *tetragon.RateLimitInfo:
 		return NewRateLimitInfoChecker("").FromRateLimitInfo(ev), nil
+	case *tetragon.ProcessThrottle:
+		return NewProcessThrottleChecker("").FromProcessThrottle(ev), nil
 
 	default:
 		return nil, fmt.Errorf("Unhandled event type %T", event)
@@ -340,6 +342,8 @@ func EventFromResponse(response *tetragon.GetEventsResponse) (Event, error) {
 		return ev.ProcessLoader, nil
 	case *tetragon.GetEventsResponse_RateLimitInfo:
 		return ev.RateLimitInfo, nil
+	case *tetragon.GetEventsResponse_ProcessThrottle:
+		return ev.ProcessThrottle, nil
 
 	default:
 		return nil, fmt.Errorf("Unknown event type %T", response.Event)
@@ -1762,6 +1766,124 @@ func (checker *RateLimitInfoChecker) FromRateLimitInfo(event *tetragon.RateLimit
 		val := event.NumberOfDroppedProcessEvents
 		checker.NumberOfDroppedProcessEvents = &val
 	}
+	return checker
+}
+
+// ProcessThrottleChecker implements a checker struct to check a ProcessThrottle event
+type ProcessThrottleChecker struct {
+	CheckerName string               `json:"checkerName"`
+	Process     *ProcessChecker      `json:"process,omitempty"`
+	Parent      *ProcessChecker      `json:"parent,omitempty"`
+	Type        *ThrottleTypeChecker `json:"type,omitempty"`
+	Event       *EventTypeChecker    `json:"event,omitempty"`
+}
+
+// CheckEvent checks a single event and implements the EventChecker interface
+func (checker *ProcessThrottleChecker) CheckEvent(event Event) error {
+	if ev, ok := event.(*tetragon.ProcessThrottle); ok {
+		return checker.Check(ev)
+	}
+	return fmt.Errorf("%s: %T is not a ProcessThrottle event", CheckerLogPrefix(checker), event)
+}
+
+// CheckResponse checks a single gRPC response and implements the EventChecker interface
+func (checker *ProcessThrottleChecker) CheckResponse(response *tetragon.GetEventsResponse) error {
+	event, err := EventFromResponse(response)
+	if err != nil {
+		return err
+	}
+	return checker.CheckEvent(event)
+}
+
+// NewProcessThrottleChecker creates a new ProcessThrottleChecker
+func NewProcessThrottleChecker(name string) *ProcessThrottleChecker {
+	return &ProcessThrottleChecker{CheckerName: name}
+}
+
+// Get the name associated with the checker
+func (checker *ProcessThrottleChecker) GetCheckerName() string {
+	return checker.CheckerName
+}
+
+// Get the type of the checker as a string
+func (checker *ProcessThrottleChecker) GetCheckerType() string {
+	return "ProcessThrottleChecker"
+}
+
+// Check checks a ProcessThrottle event
+func (checker *ProcessThrottleChecker) Check(event *tetragon.ProcessThrottle) error {
+	if event == nil {
+		return fmt.Errorf("%s: ProcessThrottle event is nil", CheckerLogPrefix(checker))
+	}
+
+	fieldChecks := func() error {
+		if checker.Process != nil {
+			if err := checker.Process.Check(event.Process); err != nil {
+				return fmt.Errorf("Process check failed: %w", err)
+			}
+		}
+		if checker.Parent != nil {
+			if err := checker.Parent.Check(event.Parent); err != nil {
+				return fmt.Errorf("Parent check failed: %w", err)
+			}
+		}
+		if checker.Type != nil {
+			if err := checker.Type.Check(&event.Type); err != nil {
+				return fmt.Errorf("Type check failed: %w", err)
+			}
+		}
+		if checker.Event != nil {
+			if err := checker.Event.Check(&event.Event); err != nil {
+				return fmt.Errorf("Event check failed: %w", err)
+			}
+		}
+		return nil
+	}
+	if err := fieldChecks(); err != nil {
+		return fmt.Errorf("%s: %w", CheckerLogPrefix(checker), err)
+	}
+	return nil
+}
+
+// WithProcess adds a Process check to the ProcessThrottleChecker
+func (checker *ProcessThrottleChecker) WithProcess(check *ProcessChecker) *ProcessThrottleChecker {
+	checker.Process = check
+	return checker
+}
+
+// WithParent adds a Parent check to the ProcessThrottleChecker
+func (checker *ProcessThrottleChecker) WithParent(check *ProcessChecker) *ProcessThrottleChecker {
+	checker.Parent = check
+	return checker
+}
+
+// WithType adds a Type check to the ProcessThrottleChecker
+func (checker *ProcessThrottleChecker) WithType(check tetragon.ThrottleType) *ProcessThrottleChecker {
+	wrappedCheck := ThrottleTypeChecker(check)
+	checker.Type = &wrappedCheck
+	return checker
+}
+
+// WithEvent adds a Event check to the ProcessThrottleChecker
+func (checker *ProcessThrottleChecker) WithEvent(check tetragon.EventType) *ProcessThrottleChecker {
+	wrappedCheck := EventTypeChecker(check)
+	checker.Event = &wrappedCheck
+	return checker
+}
+
+//FromProcessThrottle populates the ProcessThrottleChecker using data from a ProcessThrottle event
+func (checker *ProcessThrottleChecker) FromProcessThrottle(event *tetragon.ProcessThrottle) *ProcessThrottleChecker {
+	if event == nil {
+		return checker
+	}
+	if event.Process != nil {
+		checker.Process = NewProcessChecker().FromProcess(event.Process)
+	}
+	if event.Parent != nil {
+		checker.Parent = NewProcessChecker().FromProcess(event.Parent)
+	}
+	checker.Type = NewThrottleTypeChecker(event.Type)
+	checker.Event = NewEventTypeChecker(event.Event)
 	return checker
 }
 
@@ -6076,6 +6198,110 @@ func (enum *TaintedBitsTypeChecker) Check(val *tetragon.TaintedBitsType) error {
 	}
 	if *enum != TaintedBitsTypeChecker(*val) {
 		return fmt.Errorf("TaintedBitsTypeChecker: TaintedBitsType has value %s which does not match expected value %s", (*val), tetragon.TaintedBitsType(*enum))
+	}
+	return nil
+}
+
+// EventTypeChecker checks a tetragon.EventType
+type EventTypeChecker tetragon.EventType
+
+// MarshalJSON implements json.Marshaler interface
+func (enum EventTypeChecker) MarshalJSON() ([]byte, error) {
+	if name, ok := tetragon.EventType_name[int32(enum)]; ok {
+		name = strings.TrimPrefix(name, "")
+		return json.Marshal(name)
+	}
+
+	return nil, fmt.Errorf("Unknown EventType %d", enum)
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface
+func (enum *EventTypeChecker) UnmarshalJSON(b []byte) error {
+	var str string
+	if err := yaml.UnmarshalStrict(b, &str); err != nil {
+		return err
+	}
+
+	// Convert to uppercase if not already
+	str = strings.ToUpper(str)
+
+	// Look up the value from the enum values map
+	if n, ok := tetragon.EventType_value[str]; ok {
+		*enum = EventTypeChecker(n)
+	} else if n, ok := tetragon.EventType_value[""+str]; ok {
+		*enum = EventTypeChecker(n)
+	} else {
+		return fmt.Errorf("Unknown EventType %s", str)
+	}
+
+	return nil
+}
+
+// NewEventTypeChecker creates a new EventTypeChecker
+func NewEventTypeChecker(val tetragon.EventType) *EventTypeChecker {
+	enum := EventTypeChecker(val)
+	return &enum
+}
+
+// Check checks a EventType against the checker
+func (enum *EventTypeChecker) Check(val *tetragon.EventType) error {
+	if val == nil {
+		return fmt.Errorf("EventTypeChecker: EventType is nil and does not match expected value %s", tetragon.EventType(*enum))
+	}
+	if *enum != EventTypeChecker(*val) {
+		return fmt.Errorf("EventTypeChecker: EventType has value %s which does not match expected value %s", (*val), tetragon.EventType(*enum))
+	}
+	return nil
+}
+
+// ThrottleTypeChecker checks a tetragon.ThrottleType
+type ThrottleTypeChecker tetragon.ThrottleType
+
+// MarshalJSON implements json.Marshaler interface
+func (enum ThrottleTypeChecker) MarshalJSON() ([]byte, error) {
+	if name, ok := tetragon.ThrottleType_name[int32(enum)]; ok {
+		name = strings.TrimPrefix(name, "THROTTLE_TYPE_ST")
+		return json.Marshal(name)
+	}
+
+	return nil, fmt.Errorf("Unknown ThrottleType %d", enum)
+}
+
+// UnmarshalJSON implements json.Unmarshaler interface
+func (enum *ThrottleTypeChecker) UnmarshalJSON(b []byte) error {
+	var str string
+	if err := yaml.UnmarshalStrict(b, &str); err != nil {
+		return err
+	}
+
+	// Convert to uppercase if not already
+	str = strings.ToUpper(str)
+
+	// Look up the value from the enum values map
+	if n, ok := tetragon.ThrottleType_value[str]; ok {
+		*enum = ThrottleTypeChecker(n)
+	} else if n, ok := tetragon.ThrottleType_value["THROTTLE_TYPE_ST"+str]; ok {
+		*enum = ThrottleTypeChecker(n)
+	} else {
+		return fmt.Errorf("Unknown ThrottleType %s", str)
+	}
+
+	return nil
+}
+
+// NewThrottleTypeChecker creates a new ThrottleTypeChecker
+func NewThrottleTypeChecker(val tetragon.ThrottleType) *ThrottleTypeChecker {
+	enum := ThrottleTypeChecker(val)
+	return &enum
+}
+
+// Check checks a ThrottleType against the checker
+func (enum *ThrottleTypeChecker) Check(val *tetragon.ThrottleType) error {
+	if val == nil {
+		return fmt.Errorf("ThrottleTypeChecker: ThrottleType is nil and does not match expected value %s", tetragon.ThrottleType(*enum))
+	}
+	if *enum != ThrottleTypeChecker(*val) {
+		return fmt.Errorf("ThrottleTypeChecker: ThrottleType has value %s which does not match expected value %s", (*val), tetragon.ThrottleType(*enum))
 	}
 	return nil
 }
