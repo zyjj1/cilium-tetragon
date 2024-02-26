@@ -23,7 +23,8 @@ PROGS = sigkill-tester \
 	getcpu \
 	direct-write-tester \
 	change-capabilities \
-	execbomb
+	execbomb \
+	forkbomb
 
 # For now killer-tester is compiled to 32-bit only on x86_64 as we want
 # to test 32-bit binaries and system calls compatibility layer.
@@ -79,6 +80,9 @@ uprobe-test-2: uprobe-test-1
 	cp uprobe-test-1 uprobe-test-2
 
 execbomb: execbomb.c
+	$(GCC) -Wall $< -o $@
+
+forkbomb-2: forkbomb-2.c
 	$(GCC) -Wall $< -o $@
 
 # -m32 is an x86_64 flag.
