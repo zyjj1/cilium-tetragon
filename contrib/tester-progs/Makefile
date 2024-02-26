@@ -22,7 +22,8 @@ PROGS = sigkill-tester \
 	drop-privileges \
 	getcpu \
 	direct-write-tester \
-	change-capabilities
+	change-capabilities \
+	execbomb
 
 # For now enforcer-tester is compiled to 32-bit only on x86_64 as we want
 # to test 32-bit binaries and system calls compatibility layer.
@@ -76,6 +77,9 @@ uprobe-test-1: uprobe-test.c libuprobe.so
 
 uprobe-test-2: uprobe-test-1
 	cp uprobe-test-1 uprobe-test-2
+
+execbomb: execbomb.c
+	$(GCC) -Wall $< -o $@
 
 # -m32 is an x86_64 flag.
 # NB(kkourt) we compile this as static to avoid the need for ia32 libs in VMs
