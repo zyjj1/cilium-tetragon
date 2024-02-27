@@ -15,11 +15,13 @@ struct cgroup_rate_key {
 struct cgroup_rate_value {
 	__u64 lastns;
 	__u64 tokens;
+	__u64 throttlens;
 };
 
 struct cgroup_rate_settings {
 	__u64 tokens;
 	__u64 interval_ns;
+	__u64 throttle_ns;
 };
 
 struct {
@@ -29,19 +31,39 @@ struct {
 	__type(value, struct cgroup_rate_value);
 } cgroup_rate_map SEC(".maps");
 
+enum {
+	CGROUP_RATE_THROTTLE_NONE  = 0,
+	CGROUP_RATE_THROTTLE_START = 1,
+	CGROUP_RATE_THROTTLE_STOP  = 2,
+};
+
 static inline __attribute__((always_inline)) bool
 cgroup_rate(struct cgroup_rate_key *key, __u64 ns,
-	    const struct cgroup_rate_settings *settings)
+	    const struct cgroup_rate_settings *settings,
+	    int *throttle)
 {
+	bool do_throttle = settings->throttle_ns != 0;
 	struct cgroup_rate_value *value, new_value;
 	__u64 since_lastns;
+
+	*throttle = CGROUP_RATE_THROTTLE_NONE;
 
 	value = map_lookup_elem(&cgroup_rate_map, key);
 	if (value == NULL) {
 		new_value.lastns = ns;
 		new_value.tokens = settings->tokens - 1;
+		new_value.throttlens = 0;
 		map_update_elem(&cgroup_rate_map, key, &new_value, BPF_ANY);
 		return true;
+	}
+
+	if (do_throttle && value->throttlens) {
+		__u64 delta = ns - value->throttlens;
+
+		if (delta < settings->throttle_ns)
+			return false;
+		*throttle = CGROUP_RATE_THROTTLE_STOP;
+		value->throttlens = 0;
 	}
 
 	since_lastns = ns - value->lastns;
@@ -53,6 +75,11 @@ cgroup_rate(struct cgroup_rate_key *key, __u64 ns,
 	if (value->tokens > 0) {
 		value->tokens--;
 		return true;
+	}
+
+	if (do_throttle) {
+		value->throttlens = ns;
+		*throttle = CGROUP_RATE_THROTTLE_START;
 	}
 
 	return false;
