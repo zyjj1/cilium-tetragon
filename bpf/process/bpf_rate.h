@@ -31,6 +31,21 @@ struct {
 	__type(value, struct cgroup_rate_value);
 } cgroup_rate_map SEC(".maps");
 
+struct msg_throttle {
+	struct msg_common common;
+	struct msg_execve_key current;
+	__u8 type;
+	__u8 event;
+	__u8 pad[6];
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct msg_throttle);
+} throttle_heap_map SEC(".maps");
+
 enum {
 	CGROUP_RATE_THROTTLE_NONE  = 0,
 	CGROUP_RATE_THROTTLE_START = 1,
@@ -83,6 +98,41 @@ cgroup_rate(struct cgroup_rate_key *key, __u64 ns,
 	}
 
 	return false;
+}
+
+static inline __attribute__((always_inline)) void
+send_throttle(struct sched_execve_args *ctx, __u8 throttle, __u8 event)
+{
+	struct msg_throttle *msg;
+	struct execve_map_value *curr;
+	size_t size;
+	__u32 pid;
+
+	if (throttle == CGROUP_RATE_THROTTLE_NONE)
+		return;
+
+	msg = map_lookup_elem(&throttle_heap_map, &(__u32){ 0 });
+	if (!msg)
+		return;
+
+	pid = (get_current_pid_tgid() >> 32);
+	curr = execve_map_get_noinit(pid);
+	if (!curr)
+		return;
+
+	msg->current.pid = curr->key.pid;
+	msg->current.ktime = curr->key.ktime;
+
+	msg->common.size = size = sizeof(*msg);
+	msg->common.ktime = ktime_get_ns();
+	msg->common.op = MSG_OP_THROTTLE;
+	msg->common.flags = 0;
+
+	msg->type = throttle;
+	msg->event = event;
+
+	perf_event_output_metric(ctx, MSG_OP_THROTTLE, &tcpmon_map,
+				 BPF_F_CURRENT_CPU, msg, size);
 }
 
 #endif /* __RATE_H__ */
