@@ -55,6 +55,8 @@ var (
 
 	ExecveJoinMap = program.MapBuilder("tg_execve_joined_info_map", ExecveBprmCommit)
 
+	ForkTailCallsMap = program.MapBuilderPin("fork_calls", "fork_calls", Fork)
+
 	/* Tetragon runtime configuration */
 	TetragonConfMap = program.MapBuilder("tg_conf_map", Execve)
 
@@ -118,6 +120,7 @@ func GetDefaultMaps() []*program.Map {
 		ExecveStats,
 		ExecveJoinMapStats,
 		ExecveTailCallsMap,
+		ForkTailCallsMap,
 		TCPMonMap,
 		TetragonConfMap,
 		StatsMap,

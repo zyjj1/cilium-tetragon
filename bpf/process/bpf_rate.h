@@ -159,4 +159,27 @@ execve_cgroup_rate(struct sched_execve_args *ctx)
 	return send;
 }
 
+static inline __attribute__((always_inline)) bool
+fork_cgroup_rate(void *ctx, struct task_struct *task)
+{
+	struct cgroup_rate_key key = { .op = EVENT_EXECVE };
+	struct cgroup_rate_settings settings = {
+		.tokens      = 1000,
+		.interval_ns = 1*NSEC_PER_SEC,
+		.throttle_ns = 5*NSEC_PER_SEC,
+	};
+	struct msg_execve_event *msg;
+	int throttle;
+	bool send;
+
+	msg = map_lookup_elem(&execve_msg_heap_map, &(__u32){ 0 });
+	if (!msg)
+		return false;
+
+	key.cgroupid = get_task_cgroupid(task);
+	send = cgroup_rate(&key, msg->common.ktime, &settings, &throttle);
+	send_throttle(ctx, throttle, MSG_OP_CLONE);
+	return send;
+}
+
 #endif /* __RATE_H__ */

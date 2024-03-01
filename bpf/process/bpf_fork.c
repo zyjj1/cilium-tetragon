@@ -10,6 +10,14 @@
 #include "bpf_task.h"
 #include "environ_conf.h"
 #include "bpf_process_event.h"
+#include "bpf_rate.h"
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, __u32);
+} fork_calls SEC(".maps");
 
 char _license[] __attribute__((section("license"), used)) = "Dual BSD/GPL";
 #ifdef VMLINUX_KERNEL_VERSION
@@ -19,6 +27,14 @@ int _version __attribute__((section(("version")), used)) =
 
 __attribute__((section("kprobe/wake_up_new_task"), used)) int
 BPF_KPROBE(event_wake_up_new_task, struct task_struct *task)
+{
+	if (fork_cgroup_rate(ctx, task))
+		tail_call(ctx, &fork_calls, 0);
+	return 0;
+}
+
+__attribute__((section("kprobe/0"), used)) int
+BPF_KPROBE(fork_send, struct task_struct *task)
 {
 	struct execve_map_value *curr, *parent;
 	struct msg_clone_event msg;

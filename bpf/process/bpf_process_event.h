@@ -571,6 +571,29 @@ __event_get_current_cgroup_name(struct cgroup *cgrp,
 		process->flags |= EVENT_ERROR_CGROUP_NAME;
 }
 
+static inline __attribute__((always_inline)) __u64
+get_task_cgroupid(struct task_struct *task)
+{
+	int zero = 0, subsys_idx = 0;
+	struct tetragon_conf *conf;
+	__u64 cgrpfs_magic = 0;
+	struct cgroup *cgrp;
+	__u32 flags = 0;
+
+	conf = map_lookup_elem(&tg_conf_map, &zero);
+	if (conf) {
+		/* Select which cgroup version */
+		cgrpfs_magic = conf->cgrp_fs_magic;
+		subsys_idx = conf->tg_cgrp_subsys_idx;
+	}
+
+	cgrp = get_task_cgroup(task, subsys_idx, &flags);
+	if (!cgrp)
+		return 0;
+
+	return __tg_get_current_cgroup_id(cgrp, cgrpfs_magic);
+}
+
 /**
  * __event_get_cgroup_info() Collect cgroup info from current task.
  * @task: must be current task.

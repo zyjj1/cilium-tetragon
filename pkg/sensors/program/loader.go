@@ -455,7 +455,7 @@ func LoadRawTracepointProgram(bpfDir string, load *Program, verbose int) error {
 func LoadKprobeProgram(bpfDir string, load *Program, verbose int) error {
 	var ci *customInstall
 	for mName, mPath := range load.PinMap {
-		if mName == "kprobe_calls" || mName == "retkprobe_calls" {
+		if mName == "kprobe_calls" || mName == "retkprobe_calls" || mName == "fork_calls" {
 			ci = &customInstall{mPath, "kprobe"}
 			break
 		}
