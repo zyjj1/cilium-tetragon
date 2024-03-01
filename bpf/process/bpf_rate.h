@@ -5,6 +5,7 @@
 #define __RATE_H__
 
 #include "bpf_tracing.h"
+#include "bpf_time.h"
 
 struct cgroup_rate_key {
 	__u8 op;
@@ -133,6 +134,29 @@ send_throttle(struct sched_execve_args *ctx, __u8 throttle, __u8 event)
 
 	perf_event_output_metric(ctx, MSG_OP_THROTTLE, &tcpmon_map,
 				 BPF_F_CURRENT_CPU, msg, size);
+}
+
+static inline __attribute__((always_inline)) bool
+execve_cgroup_rate(struct sched_execve_args *ctx)
+{
+	struct cgroup_rate_key key = { .op = EVENT_EXECVE };
+	struct cgroup_rate_settings settings = {
+		.tokens      = 1000,
+		.interval_ns = 1*NSEC_PER_SEC,
+		.throttle_ns = 5*NSEC_PER_SEC,
+	};
+	struct msg_execve_event *msg;
+	int throttle;
+	bool send;
+
+	msg = map_lookup_elem(&execve_msg_heap_map, &(__u32){ 0 });
+	if (!msg)
+		return 0;
+
+	key.cgroupid = msg->kube.cgrpid;
+	send = cgroup_rate(&key, msg->common.ktime, &settings, &throttle);
+	send_throttle(ctx, throttle, MSG_OP_EXECVE);
+	return send;
 }
 
 #endif /* __RATE_H__ */
