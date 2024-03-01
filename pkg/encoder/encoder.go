@@ -239,6 +239,7 @@ func (p *CompactEncoder) EventToString(response *tetragon.GetEventsResponse) (st
 			status = p.Colorer.Red.Sprint(exit.Status)
 		}
 		return CapTrailorPrinter(fmt.Sprintf("%s %s %s %s", event, processInfo, args, status), caps), nil
+	case *tetragon.GetEventsResponse_ProcessThrottle:
 	case *tetragon.GetEventsResponse_ProcessLoader:
 		loader := response.GetProcessLoader()
 		if loader.Process == nil {
