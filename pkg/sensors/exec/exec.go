@@ -224,6 +224,29 @@ func handleCgroupEvent(r *bytes.Reader) ([]observer.Event, error) {
 	return []observer.Event{msgUnix}, nil
 }
 
+type OpVal uint8
+
+func (op OpVal) EventType() int32 {
+	return [...]int32{
+		5:  1, // ops.MSG_OP_EXECVE -> tetragon.PROCESS_EXEC
+		23: 5, // ops.MSG_OP_CLONE  -> tetragon.PROCESS_EXIT
+	}[op]
+}
+
+func handleThrottleEvent(r *bytes.Reader) ([]observer.Event, error) {
+	m := processapi.MsgThrottle{}
+	err := binary.Read(r, binary.LittleEndian, &m)
+	if err != nil {
+		return nil, err
+	}
+	msg := &exec.MsgProcessThrottleUnix{
+		Msg:   &m,
+		Type:  int32(m.Type),
+		Event: OpVal(m.Event).EventType(),
+	}
+	return []observer.Event{msg}, nil
+}
+
 type execProbe struct{}
 
 func (e *execProbe) LoadProbe(args sensors.LoadProbeArgs) error {
@@ -245,4 +268,5 @@ func AddExec() {
 	observer.RegisterEventHandlerAtInit(ops.MSG_OP_EXIT, handleExit)
 	observer.RegisterEventHandlerAtInit(ops.MSG_OP_CLONE, handleClone)
 	observer.RegisterEventHandlerAtInit(ops.MSG_OP_CGROUP, handleCgroupEvent)
+	observer.RegisterEventHandlerAtInit(ops.MSG_OP_THROTTLE, handleThrottleEvent)
 }

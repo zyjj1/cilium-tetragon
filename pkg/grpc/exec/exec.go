@@ -545,3 +545,74 @@ func (msg *MsgProcessCleanupEventUnix) HandleMessage() *tetragon.GetEventsRespon
 func (msg *MsgProcessCleanupEventUnix) Cast(_ interface{}) notify.Message {
 	return &MsgProcessCleanupEventUnix{}
 }
+
+type MsgProcessThrottleUnix struct {
+	Msg   *processapi.MsgThrottle
+	Type  int32
+	Event int32
+}
+
+func GetProcessThrottle(msg *MsgProcessThrottleUnix) *tetragon.ProcessThrottle {
+	var tetragonParent, tetragonProcess *tetragon.Process
+
+	proc, parent := process.GetParentProcessInternal(msg.Msg.Current.Pid, msg.Msg.Current.Ktime)
+	if proc == nil {
+		tetragonProcess = &tetragon.Process{
+			Pid:       &wrapperspb.UInt32Value{Value: msg.Msg.Current.Pid},
+			StartTime: ktime.ToProto(msg.Msg.Current.Ktime),
+		}
+	} else {
+		tetragonProcess = proc.UnsafeGetProcess()
+		if err := proc.AnnotateProcess(option.Config.EnableProcessCred, option.Config.EnableProcessNs); err != nil {
+			logger.GetLogger().WithError(err).WithField("processId", tetragonProcess.Pid).
+				Debugf("Failed to annotate process with capabilities and namespaces info")
+		}
+	}
+
+	if parent != nil {
+		tetragonParent = parent.UnsafeGetProcess()
+	}
+
+	tetragonEvent := &tetragon.ProcessThrottle{
+		Process: tetragonProcess,
+		Parent:  tetragonParent,
+		Type:    tetragon.ThrottleType(msg.Type),
+		Event:   tetragon.EventType(msg.Event),
+	}
+
+	if ec := eventcache.Get(); ec != nil &&
+		(ec.Needed(tetragonProcess) || (tetragonProcess.Pid.Value > 1)) {
+		ec.Add(nil, tetragonEvent, msg.Msg.Common.Ktime, msg.Msg.Current.Ktime, msg)
+		return nil
+	}
+
+	return tetragonEvent
+}
+
+func (msg *MsgProcessThrottleUnix) Notify() bool {
+	return true
+}
+
+func (msg *MsgProcessThrottleUnix) RetryInternal(ev notify.Event, timestamp uint64) (*process.ProcessInternal, error) {
+	return eventcache.HandleGenericInternal(ev, msg.Msg.Current.Pid, nil, timestamp)
+}
+
+func (msg *MsgProcessThrottleUnix) Retry(internal *process.ProcessInternal, ev notify.Event) error {
+	return eventcache.HandleGenericEvent(internal, ev, nil)
+}
+
+func (msg *MsgProcessThrottleUnix) HandleMessage() *tetragon.GetEventsResponse {
+	k := GetProcessThrottle(msg)
+	if k == nil {
+		return nil
+	}
+	return &tetragon.GetEventsResponse{
+		Event:    &tetragon.GetEventsResponse_ProcessThrottle{ProcessThrottle: k},
+		NodeName: nodeName,
+	}
+}
+
+func (msg *MsgProcessThrottleUnix) Cast(o interface{}) notify.Message {
+	t := o.(MsgProcessThrottleUnix)
+	return &t
+}
