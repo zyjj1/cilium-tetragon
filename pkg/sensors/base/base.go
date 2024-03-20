@@ -47,6 +47,14 @@ var (
 		"kprobe",
 	)
 
+	CgroupRmdir = program.Builder(
+		"bpf_cgroup.o",
+		"cgroup/cgroup_rmdir",
+		"raw_tracepoint/cgroup_rmdir",
+		"tg_cgroup_rmdir",
+		"raw_tracepoint",
+	)
+
 	/* Event Ring map */
 	TCPMonMap = program.MapBuilder("tcpmon_map", Execve)
 	/* Networking and Process Monitoring maps */
@@ -107,6 +115,7 @@ func GetDefaultPrograms() []*program.Program {
 		Fork,
 		Execve,
 		ExecveBprmCommit,
+		CgroupRmdir,
 	}
 	return progs
 }
