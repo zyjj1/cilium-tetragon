@@ -136,12 +136,13 @@ func mergeInBaseSensorMaps(t *testing.T, sensorMaps []SensorMap, sensorProgs []S
 		3: SensorProg{Name: "execve_send", Type: ebpf.TracePoint},
 		4: SensorProg{Name: "tg_kp_bprm_committing_creds", Type: ebpf.Kprobe},
 		5: SensorProg{Name: "tg_cgroup_rmdir", Type: ebpf.RawTracepoint},
+		6: SensorProg{Name: "execve_rate", Type: ebpf.TracePoint},
 	}
 
 	var baseMaps = []SensorMap{
 		// all programs
 		SensorMap{Name: "execve_map", Progs: []uint{0, 1, 2, 3, 4}},
-		SensorMap{Name: "tcpmon_map", Progs: []uint{0, 1, 2, 3}},
+		SensorMap{Name: "tcpmon_map", Progs: []uint{0, 1, 2, 3, 6}},
 
 		// all but event_execve
 		SensorMap{Name: "execve_map_stats", Progs: []uint{1, 2}},
@@ -157,7 +158,7 @@ func mergeInBaseSensorMaps(t *testing.T, sensorMaps []SensorMap, sensorProgs []S
 		SensorMap{Name: "tg_execve_joined_info_map_stats", Progs: []uint{0, 4}},
 
 		// tg_cgroup_rmdir
-		SensorMap{Name: "cgroup_rate_map", Progs: []uint{5}},
+		SensorMap{Name: "cgroup_rate_map", Progs: []uint{1, 2, 5, 6}},
 	}
 
 	return mergeSensorMaps(t, sensorMaps, baseMaps, sensorProgs, baseProgs)
